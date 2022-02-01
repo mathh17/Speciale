@@ -1,0 +1,10 @@
+Describtive analysis of the data.
+XGboost
+Is there a strong weekly pattern
+Exploratory data analysis
+beat naive model
+Beat ARima model?
+Beat Linear regression model.
+Describe methods. 
+
+thursday kl. 15
