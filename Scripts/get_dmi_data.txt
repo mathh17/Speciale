@@ -1,0 +1,86 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri Jun 18 13:37:20 2021
+
+@author: JPM
+"""
+
+import pandas as pd
+import requests
+
+stations = ["06031",
+            "06032",
+            "06065",
+            "06058",
+            "06082",
+            "06073",
+            "06072",
+            "06056",
+            "06049",
+            "06052",
+            "06051",
+            "06041",
+            "06074",
+            "06081",
+            "06088",
+            "06093",
+            "06096",
+            "06116",
+            "06119",
+            "06102",
+            "06126",
+            "06123",
+            "06124",
+            "06174",
+            "06183",
+            "06184",
+            "06186",
+            "06181",
+            "06188",
+            "06168",
+            "06169",
+            "06156",
+            "06159",
+            "06154",
+            "06135",
+            "06136"]
+
+url = "https://dmigw.govcloud.dk/v2/climateData/collections/stationValue/"
+items = "items?"
+station = "stationId="
+resolution = "timeResolution=hour"
+datetime = "datetime="
+limit = "limit=60000"
+start_date = "2015-01-01T00:00:00Z/"
+end_date = "2021-06-01T00:00:00Z"
+parameters = "parameterId="
+parameter_id = "mean_temp"
+key = "api-key=df02ada1-6633-475d-aa9d-2d78706b503b"
+# station_id = "06031"
+
+for station_id in stations:
+    url_call = url + items + station + station_id + '&' + datetime + start_date
+    url_call += end_date + '&' + resolution + '&' + limit + '&' + parameters
+    url_call += parameter_id + '&' + key
+
+    print(url_call)
+    response = requests.get(url_call)
+
+    dates = []
+    values = []
+    station_ids = []
+    data_list = response.json()['features']
+    for data in data_list:
+        date_to = pd.to_datetime(data['properties']['to']).astimezone('UTC')
+        dates.append(date_to)
+        values.append(data['properties']['value'])
+        station_ids.append(station_id)
+
+    df = pd.DataFrame({
+        "time": dates,
+        "temperature": values,
+        "station": station_ids
+        })
+
+    pkl_name = "inputs/Weather/temp_station_" + station_id + ".pkl"
+    df.to_pickle(pkl_name)
