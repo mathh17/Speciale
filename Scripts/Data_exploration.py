@@ -9,9 +9,9 @@ import seaborn as sns
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
-path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
-
-os.chdir(path)
+home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
+energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\stations_data_dk2'
+os.chdir(energinet_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -36,8 +36,10 @@ dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
-old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
-os.chdir(old_path)
+old_home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
+old_energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
+
+os.chdir(old_energinet_path)
 df_DK1_2010_2015 = pd.read_pickle("data/dk1_data_2010_2015.pkl")
 df_DK2_2010_2015 = pd.read_pickle("data/dk2_data_2010_2015.pkl")
 df_DK1_2015_2020 = pd.read_pickle("data/dk1_data_2015_2020.pkl")
@@ -94,16 +96,16 @@ y1 = conc_data['temp_mean_past1h']
 y2 = conc_data['Con']
 x = range(0,len(y1))
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x, y1, label='temp')  # Plot some data on the axes.
-ax1.set_xlabel('x label')  # Add an x-label to the axes.
-ax1.set_ylabel('y label')  # Add a y-label to the axes.
+ax1.plot(x[0:hours_in_year], y1[0:hours_in_year], label='Temperature')  # Plot some data on the axes.
+ax1.set_xlabel('Hours')  # Add an x-label to the axes.
+ax1.set_ylabel('Temperature')  # Add a y-label to the axes.
 ax1.legend();  # Add a legend.
 
-ax2.plot(x, y2, label='consumption')  # Plot more data on the axes...
-ax2.set_xlabel('x label')  # Add an x-label to the axes.
-ax2.set_ylabel('y label')  # Add a y-label to the axes.
+ax2.plot(x[0:hours_in_year], y2[0:hours_in_year], label='Consumption')  # Plot more data on the axes...
+ax2.set_xlabel('Hours')  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
-ax1.set_title("temperature vs consumption")  # Add a title to the axes.
+ax1.set_title("Temperature & Consumption")  # Add a title to the axes.
 
 
 # %%
@@ -113,17 +115,20 @@ Plotting the Radiation and the consumption in two graphs next to eachother.
 y1 = conc_data['radia_glob_past1h']
 y2 = conc_data['Con']
 x = range(0,len(y1))
-fig, (ax1,ax2) = plt.subplots(2,1,figsize=(100,10))
-ax1.plot(x[0:10000], y1[0:10000], label='radiation')  # Plot some data on the axes.
-ax1.set_xlabel('x label')  # Add an x-label to the axes.
-ax1.set_ylabel('y label')  # Add a y-label to the axes.
+x_tick = np.arange(0,hours_in_year,1000)
+fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
+ax1.plot(x[0:hours_in_year], y1[0:hours_in_year], label='Radiation')  # Plot some data on the axes.
+ax1.set_xlabel('Hours')  # Add an x-label to the axes.
+ax1.set_xticks(x_tick)
+ax1.set_ylabel('radiation')  # Add a y-label to the axes.
 ax1.legend();  # Add a legend.
 
-ax2.plot(x[0:10000], y2[0:10000], label='consumption')  # Plot more data on the axes...
-ax2.set_xlabel('x label')  # Add an x-label to the axes.
-ax2.set_ylabel('y label')  # Add a y-label to the axes.
+ax2.plot(x[0:hours_in_year], y2[0:hours_in_year], label='Consumption')  # Plot more data on the axes...
+ax2.set_xlabel('Hours')  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
+ax2.set_xticks(x_tick)
 ax2.legend();  # Add a legend.
-ax1.set_title("radiation vs consumption")  # Add a title to the axes.
+ax1.set_title("Radiation & Consumption")  # Add a title to the axes.
 
 #%%
 """
@@ -133,17 +138,20 @@ This is only for 1000 hours, else it is not possible to see anything
 y1 = conc_data['time']
 y2 = conc_data['Con']
 x = range(0,len(y1))
+x_tick = np.arange(0,100,4)
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[0:1000], y1[0:1000], label='time')  # Plot some data on the axes.
-ax1.set_xlabel('x label')  # Add an x-label to the axes.
-ax1.set_ylabel('y label')  # Add a y-label to the axes.
+ax1.plot(x[0:100], y1[0:100], label='Time')  # Plot some data on the axes.
+ax1.set_xlabel('Hours')  # Add an x-label to the axes.
+ax1.set_ylabel('Time of Day')  # Add a y-label to the axes.
+ax1.set_xticks(x_tick)
 ax1.legend();  # Add a legend.
 
-ax2.plot(x[0:1000], y2[0:1000], label='consumption')  # Plot more data on the axes...
-ax2.set_xlabel('x label')  # Add an x-label to the axes.
-ax2.set_ylabel('y label')  # Add a y-label to the axes.
+ax2.plot(x[0:100], y2[0:100], label='Consumption')  # Plot more data on the axes...
+ax2.set_xlabel('Hours')  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
+ax2.set_xticks(x_tick)
 ax2.legend();  # Add a legend.
-ax1.set_title("time of day vs consumption")  # Add a title to the axes.
+ax1.set_title("Time of Day & Consumption")  # Add a title to the axes.
 
 #%%
 """
@@ -154,16 +162,16 @@ y1 = conc_data['is_holiday']
 y2 = conc_data['Con']
 x = range(0,len(y1))
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[0:1000], y1[1000:2000], label='holiday or not')  # Plot some data on the axes.
-ax1.set_xlabel('x label')  # Add an x-label to the axes.
-ax1.set_ylabel('y label')  # Add a y-label to the axes.
+ax1.plot(x[2000:3000], y1[2000:3000], label='Holiday or not')  # Plot some data on the axes.
+ax1.set_xlabel('Hours')  # Add an x-label to the axes.
+ax1.set_ylabel('Holiday or not')  # Add a y-label to the axes.
 ax1.legend();  # Add a legend.
 
-ax2.plot(x[0:1000], y2[1000:2000], label='consumption')  # Plot more data on the axes...
-ax2.set_xlabel('x label')  # Add an x-label to the axes.
-ax2.set_ylabel('y label')  # Add a y-label to the axes.
+ax2.plot(x[2000:3000], y2[2000:3000], label='Consumption')  # Plot more data on the axes...
+ax2.set_xlabel('Hours')  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
-ax1.set_title("holiday or not vs consumption")  # Add a title to the axes.
+ax1.set_title("Holiday or Not & Consumption")  # Add a title to the axes.
 # %%
 """
 Plotting the temperature calculate as "graddage" and the consumption in two graphs next to eachother.
@@ -172,14 +180,14 @@ y1 = conc_data['grad_dage']
 y2 = conc_data['Con']
 x = range(0,len(y1))
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[hours_in_year:hours_in_year*2], y1[hours_in_year*3:hours_in_year*4], label='temp')  # Plot some data on the axes.
-ax1.set_xlabel('x label')  # Add an x-label to the axes.
-ax1.set_ylabel('y label')  # Add a y-label to the axes.
+ax1.plot(x[hours_in_year:hours_in_year*2], y1[hours_in_year*3:hours_in_year*4], label='Degree day')  # Plot some data on the axes.
+ax1.set_xlabel('Hours')  # Add an x-label to the axes.
+ax1.set_ylabel('Degree day')  # Add a y-label to the axes.
 ax1.legend();  # Add a legend.
 
-ax2.plot(x[hours_in_year:hours_in_year*2], y2[hours_in_year*3:hours_in_year*4], label='consumption')  # Plot more data on the axes...
-ax2.set_xlabel('x label')  # Add an x-label to the axes.
-ax2.set_ylabel('y label')  # Add a y-label to the axes.
+ax2.plot(x[hours_in_year:hours_in_year*2], y2[hours_in_year*3:hours_in_year*4], label='Consumption')  # Plot more data on the axes...
+ax2.set_xlabel('Hours')  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
 ax1.set_title("Graddage vs consumption")  # Add a title to the axes.
 
@@ -193,13 +201,13 @@ y2 = conc_data['Con']
 x = range(0,len(y1))
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
 ax1.plot(x[0:1000], y1[1000:2000], label='Day of the week')  # Plot some data on the axes.
-ax1.set_xlabel('x label')  # Add an x-label to the axes.
-ax1.set_ylabel('y label')  # Add a y-label to the axes.
+ax1.set_xlabel('Hours')  # Add an x-label to the axes.
+ax1.set_ylabel('Day of the week')  # Add a y-label to the axes.
 ax1.legend();  # Add a legend.
 
 ax2.plot(x[0:1000], y2[1000:2000], label='consumption')  # Plot more data on the axes...
-ax2.set_xlabel('x label')  # Add an x-label to the axes.
-ax2.set_ylabel('y label')  # Add a y-label to the axes.
+ax2.set_xlabel('Hours')  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
 ax1.set_title("Day of the week vs consumption")  # Add a title to the axes.
 #%%
