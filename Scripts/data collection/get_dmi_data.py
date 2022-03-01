@@ -18,7 +18,7 @@ resolution = "timeResolution=hour"
 datetime = "datetime="
 limit = "limit=300000"
 start_date = "2010-01-01T00:00:00Z/"
-end_date = "2021-12-31T23:00:00Z"
+end_date = "2019-12-31T23:00:00Z"
 parameters = "parameterId="
 key = "api-key=46481bd5-99c3-45df-b1b1-f2743b5277cf"
 #%%
@@ -35,7 +35,7 @@ lon_min_dk1 = 8.1
 lon_min_dk2 = 10.9
 lon_max_dk2 = 12.8
 lat_max_dk2 = 56.1
-lat_min_dk2 = 55
+lat_min_dk2 = 54.5
 
 # %%
 """
@@ -44,6 +44,7 @@ df stations: dataframe of stations, with id's and coordinates
 """
 station_request = requests.get('https://dmigw.govcloud.dk/v2/metObs/collections/station/items?'+key)
 station_request_list = station_request.json()['features']
+
 stations_list = []
 regions_list = []
 coord_list = []
