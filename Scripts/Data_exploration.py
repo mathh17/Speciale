@@ -11,7 +11,7 @@ import seaborn as sns
 # changing the path to the datafolder
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
 energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\stations_data_dk2'
-os.chdir(energinet_path)
+os.chdir(home_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -39,7 +39,7 @@ dk2_mean.head()
 old_home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 old_energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(old_energinet_path)
+os.chdir(old_home_path)
 df_DK1_2010_2015 = pd.read_pickle("data/dk1_data_2010_2015.pkl")
 df_DK2_2010_2015 = pd.read_pickle("data/dk2_data_2010_2015.pkl")
 df_DK1_2015_2020 = pd.read_pickle("data/dk1_data_2015_2020.pkl")
@@ -112,21 +112,21 @@ ax1.set_title("Temperature & Consumption")  # Add a title to the axes.
 """
 Plotting the Radiation and the consumption in two graphs next to eachother.
 """
-y1 = conc_data['radia_glob_past1h']
-y2 = conc_data['Con']
+y1 = conc_data['radia_glob_past1h'][79200:79500]
+y2 = conc_data['Con'][79200:79500]
 x = range(0,len(y1))
-x_tick = np.arange(0,hours_in_year,1000)
+#x_tick = np.arange(0,hours_in_year,1000)
 fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[0:hours_in_year], y1[0:hours_in_year], label='Radiation')  # Plot some data on the axes.
+ax1.plot(x[0:len(y1)], y1[0:len(y1)], label='Radiation')  # Plot some data on the axes.
 ax1.set_xlabel('Hours')  # Add an x-label to the axes.
-ax1.set_xticks(x_tick)
+#ax1.set_xticks(x_tick)
 ax1.set_ylabel('radiation')  # Add a y-label to the axes.
 ax1.legend();  # Add a legend.
 
-ax2.plot(x[0:hours_in_year], y2[0:hours_in_year], label='Consumption')  # Plot more data on the axes...
+ax2.plot(x[0:len(y1)], y2[0:len(y1)], label='Consumption')  # Plot more data on the axes...
 ax2.set_xlabel('Hours')  # Add an x-label to the axes.
 ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
-ax2.set_xticks(x_tick)
+#ax2.set_xticks(x_tick)
 ax2.legend();  # Add a legend.
 ax1.set_title("Radiation & Consumption")  # Add a title to the axes.
 
@@ -178,19 +178,23 @@ Plotting the temperature calculate as "graddage" and the consumption in two grap
 """
 y1 = conc_data['grad_dage']
 y2 = conc_data['Con']
+z = np.polyfit(y1, y2, 1)
+p = np.poly1d(z)
 x = range(0,len(y1))
-fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[hours_in_year:hours_in_year*2], y1[hours_in_year*3:hours_in_year*4], label='Degree day')  # Plot some data on the axes.
-ax1.set_xlabel('Hours')  # Add an x-label to the axes.
-ax1.set_ylabel('Degree day')  # Add a y-label to the axes.
-ax1.legend();  # Add a legend.
-
-ax2.plot(x[hours_in_year:hours_in_year*2], y2[hours_in_year*3:hours_in_year*4], label='Consumption')  # Plot more data on the axes...
+fig, ax = plt.subplots(figsize=(20,20))
+ax.plot(y1,p(y1),"b")
+ax.scatter(y1[0:20000], y2[0:20000])  # Plot some data on the axes.
+ax.set_xlabel('Degree day')  # Add an x-label to the axes.
+ax.set_ylabel('Consumption')  # Add a y-label to the axes.
+ax.legend();  # Add a legend.
+plt.show()
+"""
+ax2.plot(x[0:len(y1)], y2[0:len(y1)], label='Consumption')  # Plot more data on the axes...
 ax2.set_xlabel('Hours')  # Add an x-label to the axes.
 ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
 ax1.set_title("Graddage vs consumption")  # Add a title to the axes.
-
+"""
 #%%
 """
 Plotting the day of the week and the consumption in two graphs next to eachother.
@@ -199,7 +203,7 @@ This is only for 1000 hours, else it is not possible to see anything
 y1 = conc_data['day']
 y2 = conc_data['Con']
 x = range(0,len(y1))
-fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
+fig, (ax1,ax2) = plt.subplots(2,1,figsize=(20,10))
 ax1.plot(x[0:1000], y1[1000:2000], label='Day of the week')  # Plot some data on the axes.
 ax1.set_xlabel('Hours')  # Add an x-label to the axes.
 ax1.set_ylabel('Day of the week')  # Add a y-label to the axes.
