@@ -83,10 +83,6 @@ pred_data['time'] = conc_data['time'].dt.hour
 hours_in_year = 8760
 
 #%%
-
-pred_data = pred_data.drop(columns=['temp_mean_past1h'])
-
-#%%
 """
 Set up training, validation and test sets.
 The XGBoost needs it to be in a special matrix.
@@ -97,9 +93,9 @@ test_set = pred_data.loc[pred_data['year'] == 2019]
 y_train = train_set['Con']
 y_val = val_set['Con']
 y_test = test_set['Con']
-del train_set['Con']
-del val_set['Con']
-del test_set['Con']
+train_set = train_set.drop(columns=['Con','year','day','temp_mean_past1h'])
+val_set = val_set.drop(columns=['Con','year','day','temp_mean_past1h'])
+test_set = test_set.drop(columns=['Con','year','day','temp_mean_past1h'])
 dtrain = xgb.DMatrix(train_set,y_train)
 dval = xgb.DMatrix(val_set,y_val)
 dtest = xgb.DMatrix(test_set,y_test)
