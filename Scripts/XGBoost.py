@@ -12,7 +12,7 @@ import shap
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
-path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
+path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\stations_data_dk2'
 
 os.chdir(path)
 
@@ -39,7 +39,7 @@ dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
-old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
+old_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 os.chdir(old_path)
 df_DK1_2010_2015 = pd.read_pickle("data/dk1_data_2010_2015.pkl")
 df_DK2_2010_2015 = pd.read_pickle("data/dk2_data_2010_2015.pkl")
@@ -105,15 +105,13 @@ num_round = 500
 bst = xgb.train(param, dtrain,num_round)
 # make prediction
 preds = bst.predict(dval)
-preds
-
 
 # %%
 mse = mean_squared_error(y_val,preds)
 mse
 #%%
 naive_y_val = np.roll(y_val,48)
-#%%
+
 mse = mean_squared_error(y_val,naive_y_val)
 mse
 #%%
@@ -143,10 +141,93 @@ explainer = shap.TreeExplainer(bst)
 
 # Calculate Shap values
 shap_values = explainer.shap_values(train_set)
-#%%
+
 shap.summary_plot(shap_values,train_set)
 
-# %%
 shap.plots.bar(shap_values)
 
+# %%
+
+
+
+
+
+
+
+#%%
+#------ IMPORT FORECAST DATA----------
+#%%
+#Calling the holiday function to build a column for if its a holiday or not
+def holidays(df):
+    holidays = []
+    for i, row in df.iterrows():
+        is_holiday = hc.get_date_type(row['time'])
+        holidays.append(is_holiday)
+    return holidays
+def data_encoder(df): 
+    df['time'] = pd.to_datetime(df['time'],format='%Y-%m-%dT%H:%M:%S', utc=True)
+    df['is_holiday'] = holidays(df)
+    return df
+
+def get_forecast_data(station, feature):
+    values = []
+    time = []
+    predicted = []
+    forecast_hour_df = pd.DataFrame()
+    forecast_day_df = pd.DataFrame()
+
+    counter = 0
+    for index, row  in station.iterrows():
+        if row['weather_type'] == feature and row['predicted_ahead']  == counter%49:
+            values.append(row['value'])
+            time.append(row['Date'])
+            predicted.append(row['predicted_ahead'])
+            counter+=1
+        if counter%49 == 48:
+            forecast_hour_df = pd.DataFrame(values,time,predicted)
+            forecast_day_df.concat(forecast_hour_df)
+
+    return forecast_day_df   
+    stations_df = pd.DataFrame(columns=[feature,'predicted_ahead','time'])
+    stations_df['temp_mean_1hr'] = values
+    stations_df['time'] = time
+    stations_df['predicted_ahead'] = predicted
+    return stations_df
+
+forecast_data = pd.read_parquet("Data/forecast_data")
+data_temp_val = get_forecast_data(forecast_data, 'temp_2m')
+data_radi_val = get_forecast_data(forecast_data,'radiation_hour')
+
+data_temp_val = data_encoder(data_temp_val)
+data_radi_val = data_encoder(data_radi_val)
+#%%
+"""
+Henter forecast data fra stationen: Jægersborg.
+Jægersborg tilhører grid companiet Radius Elnet. 
+Fører det sammen i et datasæt og omregner temperaturen fra Kelvin Celsius
+"""
+
+el_data_2021 = pd.read_pickle("data/Midtfyn_el_data_2021.pkl")
+pred_con = pd.DataFrame()
+df_DK2_maj_con = pd.DataFrame()
+df_DK2_maj_con['time'] = el_data_2021['HourUTC']
+df_DK2_maj_con['Con'] = el_data_2021['HourlySettledConsumption']
+df_DK2_maj_con['time'] = pd.to_datetime(df_DK2_maj_con['time'],format='%Y-%m-%dT%H:%M:%S', utc=True)
+data_temp_val = pd.merge(df_DK2_maj_con,data_temp_val, on='time', how='outer')
+data_temp_val
+
+data_temp_val['time'] = data_temp_val['time'].dt.hour
+data_radi_val['time'] = data_radi_val['time'].dt.hour
+
+radi_val = data_radi_val['radiation_hour']
+stations_concat_df = data_temp_val.join(radi_val)
+stations_concat_df['temp_mean_1hr'] = stations_concat_df['temp_mean_1hr'].add(-273.15)
+
+cat_time = pd.get_dummies(stations_concat_df['time'])
+stations_concat_df = stations_concat_df.join(cat_time)
+stations_concat_df = stations_concat_df.drop(columns=['predicted_ahead','time'])
+stations_concat_df.dropna(inplace=True)
+stations_concat_df = stations_concat_df.reindex(columns=['temp_mean_1hr',	'radiation_hour',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
+pred_con = stations_concat_df['Con']
+stations_concat_df = stations_concat_df.drop(columns=['Con'])
 # %%
