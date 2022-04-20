@@ -12,7 +12,7 @@ import shap
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
-path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\stations_data_dk2'
+path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
 
 os.chdir(path)
 
@@ -39,7 +39,7 @@ dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
-old_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
+old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 os.chdir(old_path)
 df_DK1_2010_2015 = pd.read_pickle("data/dk1_data_2010_2015.pkl")
 df_DK2_2010_2015 = pd.read_pickle("data/dk2_data_2010_2015.pkl")
@@ -81,6 +81,17 @@ pred_data.loc[pred_data['grad_dage'] <=0, 'grad_dage'] = 0
 pred_data['time'] = conc_data['time'].dt.hour
 
 hours_in_year = 8760
+
+forecast_df = pd.read_parquet("Data/dk2_forecast_data")
+forecast_df = forecast_df.rename(columns={'Date':'time'})
+pred_counter = 1
+forecast_dict = {}
+while pred_counter < 49:
+    pred_df = forecast_df.groupby('predicted_ahead')
+    
+    forecast_dict[pred_counter] = pred_df.get_group(int(pred_counter))
+    pred_counter +=1
+
 
 #%%
 """
@@ -145,13 +156,6 @@ shap_values = explainer.shap_values(train_set)
 shap.summary_plot(shap_values,train_set)
 
 shap.plots.bar(shap_values)
-
-# %%
-
-
-
-
-
 
 
 #%%

@@ -84,6 +84,24 @@ pred_data = pred_data.join(cat_time)
 values = conc_data['Con']
 
 hours_in_year = 8760
+#%%
+def get_forecast_merged(pred_ahead):
+    forecast_df = pd.read_parquet("Data/dk2_forecast_data")
+    forecast_df = forecast_df.rename(columns={'Date':'time'})
+    pred_counter = 1
+    forecast_dict = {}
+    while pred_counter < 49:
+        pred_df = forecast_df.groupby('predicted_ahead')
+        
+        forecast_dict[pred_counter] = pred_df.get_group(int(pred_counter))
+        pred_counter +=1
+    forecast_dict[pred_ahead]['mean_temp'] = forecast_dict[pred_ahead]['mean_temp'] - 272.15
+    forecast_merge = pd.merge(dk2_mean,forecast_dict[pred_ahead],how='inner', on='time')
+    return forecast_merge
+
+#%%
+forecast_merge = get_forecast_merged(48)
+
 
 # %%
 #del conc_data['is_holiday']
@@ -215,3 +233,14 @@ ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
 ax1.set_title("Day of the week vs consumption")  # Add a title to the axes.
 #%%
+"""
+Plotting the day of the week and the consumption in two graphs next to eachother.
+This is only for 1000 hours, else it is not possible to see anything
+"""
+y1 = forecast_merge['mean_temp']
+y2 = forecast_merge['temp_mean_past1h']
+x = range(0,len(y1))
+fig = plt.figure()
+ax = fig.add_subplot(1, 1, 1)
+ax.plot(x[0:300], y1[0:300], color='tab:blue')
+ax.plot(x[0:300], y2[0:300], color='tab:orange')
