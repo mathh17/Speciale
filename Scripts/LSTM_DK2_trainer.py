@@ -49,10 +49,6 @@ def create_dataset(df, n_deterministic_features,
 
     return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
-def min_maxer(df):
-    df_min,df_max = df.min(),df.max()
-    df_scaled = (df-df_min)/(df_max - df_min)
-    return df_scaled
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
@@ -112,15 +108,13 @@ observed_data = observed_data.join(cat_time)
 
 
 con_scaler = preprocessing.MinMaxScaler()
+scaler = preprocessing.MinMaxScaler()
 con_data = np.array(observed_data['Con'])
 con_data = con_data.reshape(-1,1)
 con_scaled = pd.DataFrame(con_scaler.fit_transform(con_data), columns=['Con'], index=observed_data.index)
 con_scaled['year'] = observed_data['year']
 observed_scaled = observed_data
-observed_scaled['grad_dage'] = min_maxer(observed_scaled['grad_dage'])
-observed_scaled['radia_glob_past1h'] = min_maxer(observed_scaled['radia_glob_past1h'])
-observed_scaled['Con'] = min_maxer(observed_scaled['Con'])
-
+observed_scaled[['grad_dage','radia_glob_past1h','Con']] = scaler.fit_transform(observed_scaled[['grad_dage','radia_glob_past1h','Con']])
 
 """
 Set up training and validation sets.
@@ -131,7 +125,7 @@ y_train = con_scaled.loc[observed_scaled['year'] <= 2017]
 y_val = con_scaled.loc[observed_scaled['year'] >= 2018]
 y_train = y_train.drop(columns=['year'])
 y_val = y_val.drop(columns=['year'])
-#%%
+
 train_set = train_set.drop(columns=['year','temp_mean_past1h','time'])
 val_set = val_set.drop(columns=['year','temp_mean_past1h','time'])
 train_set = train_set.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
@@ -157,13 +151,29 @@ non_com_model = layers.Dropout(0.2)(non_com_model)
 output = layers.Dense(1,activation='relu')(non_com_model)
 
 model = tf.keras.models.Model(inputs=[past_inputs,future_inputs], outputs=output)
-optimizer = tf.keras.optimizers.Adam()
+optimizer = tf.keras.optimizers.SGD(momentum=0.5, lr=0.01)
 loss = tf.keras.losses.Huber()
 model.compile(loss=loss,optimizer=optimizer,metrics=['mse'])
 model.summary()
 #%%
 # Fit the model to our data
-history = model.fit(X_train_windowed ,epochs=100, validation_data=(X_val_windowed))
+history = model.fit(X_train_windowed ,epochs=20, validation_data=(X_val_windowed))
+
+#%%
+model.save('LSTM_20Epochs_tester.h5')
+
+#%%
+loaded_model = keras.models.load_model('LSTM_20Epochs_tester.h5')  
+
+#%%
+history_dict = history.history
+loss_vals = history_dict['loss']
+val_loss = history_dict['val_loss']
+epochs = range(1,len(loss_vals)+1)
+
+plt.plot(epochs, loss_vals, 'bo')
+plt.plot(epochs, val_loss, 'b')
+plt.show
 
 #%%
 #------ IMPORT FORECAST DATA----------
@@ -178,12 +188,64 @@ forecast_df['grad_dage'] = -(forecast_df['mean_temp'])+17
 forecast_df.loc[forecast_df['grad_dage'] <=0, 'grad_dage'] = 0
 forecast_df = forecast_df.rename(columns={'mean_radi':'radia_glob_past1h'})
 forecast_df = forecast_df.drop(columns=['mean_temp'])
-forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h', 'is_holiday', 'hour','Con'])
-forecast_con = forecast_df['Con']
-forecast_df = forecast_df.drop(columns=['Con'])
+forecast_con = np.array(forecast_df['Con'])
+forecast_con = forecast_con.reshape(-1,1)
+cat_time = pd.get_dummies(forecast_df['hour'])
+forecast_df = forecast_df.join(cat_time)
+forecast_df = forecast_df.drop(columns=['hour'])
+forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
+
+#%%
+forecast_con_scaler = preprocessing.MinMaxScaler()
+forecast_con_scaler = forecast_con_scaler.fit(forecast_con)
+forecast_scaler = preprocessing.MinMaxScaler()
+forecast_df[['grad_dage','radia_glob_past1h','Con']] = forecast_scaler.fit_transform(forecast_df[['grad_dage','radia_glob_past1h','Con']])
+
+#%%
+forecast_windowed = create_dataset(forecast_df,27,48,48,1)
+#%%
+
+#scores to evaluate how the model performs on the test data
+score = loaded_model.evaluate(forecast_windowed,verbose=0)
+print('loss value: '+str(score[0]))
+print('MSE: '+ str(score[1]))
+
+#%%
+windows = 10
+test_pred = []
+for i, data in enumerate(forecast_windowed.take(windows)):
+    (past, future),truth = data
+    test_pred.append(loaded_model.predict((past,future)))
+predicitions_unload = []
+for i in range(0,windows):
+  for l in range(0,48):
+    predicitions_unload.append(test_pred[i][0][l][0])
+
+#%%
+
+range_len = windows * 48
+test_plot = pd.DataFrame()
+test_plot['exact_values'] = forecast_df['Con'][48:range_len+48]
+test_plot['predicted_values'] = predicitions_unload
+test_plot = test_plot.reset_index()
+fig = plt.figure(figsize=(6, 6))
+plt.subplot(1, 1, 1)
+plt.title('Predicts vs Exact values')
+plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
+         label='Exact values')
+plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
+         label='Precited Values')
+plt.legend(loc='upper right')
+plt.ylabel('Consumption')
+fig.tight_layout()
+plt.show()
+
+#%%
+forecast_pred_rescaled = forecast_con_scaler.inverse_transform(pd.DataFrame(predicitions_unload))
+
 
 # %%
-forecast_mse = mean_squared_error(forecast_con,forecast_preds)
+forecast_mse = mean_squared_error(forecast_con,test_pred)
 forecast_mse
 
 #%%

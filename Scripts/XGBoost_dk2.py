@@ -177,7 +177,7 @@ forecast_mse = mean_squared_error(forecast_con,forecast_preds)
 forecast_mse
 
 #%%
-naive_y_val = np.roll(forecast_con,48)
+naive_y_val = np.roll(forecast_con,24)
 naive_forecast_mse = mean_squared_error(forecast_con,naive_y_val)
 naive_forecast_mse
 #%%
