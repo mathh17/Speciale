@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 import Holidays_calc as hc
 from matplotlib import pyplot as plt
-import seaborn as sns
 import tensorflow as tf
 from sklearn.metrics import mean_squared_error
 from tensorflow import keras
@@ -28,7 +27,7 @@ def create_dataset(df, n_deterministic_features,
                    window_size, forecast_size,
                    batch_size):
     # Feel free to play with shuffle buffer size
-    shuffle_buffer_size = len(df)
+    #shuffle_buffer_size = len(df)
     # Total size of window is given by the number of steps to be considered
     # before prediction time + steps that we want to forecast
     total_size = window_size + forecast_size
@@ -40,7 +39,7 @@ def create_dataset(df, n_deterministic_features,
     data = data.flat_map(lambda k: k.batch(total_size))
 
     # Shuffling data (seed=Answer to the Ultimate Question of Life, the Universe, and Everything)
-    data = data.shuffle(shuffle_buffer_size, seed=42)
+    #data = data.shuffle(shuffle_buffer_size, seed=42)
 
     # Extracting past features + deterministic future + labels
     data = data.map(lambda k: ((k[:-forecast_size],
@@ -49,12 +48,79 @@ def create_dataset(df, n_deterministic_features,
 
     return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
+def create_input_dms(df):
+
+
+    previous_hours_input = 48
+
+    forecast_hours_ahead = 48
+
+
+    input_data_list = []
+
+    for i in range(len(df)-previous_hours_input-forecast_hours_ahead):
+
+        known_data = df.iloc[i:i+previous_hours_input+forecast_hours_ahead].copy()
+
+        input_data_list.append(known_data)
+
+    return input_data_list
+
+
+def predict(model, input_data):
+        #model = trained_model.models[identifier]
+        #norm_factors = trained_model.params[identifier]
+        #print(input_data)
+        trained_param = 'Con'
+        features = list(input_data[0].columns)
+        out_features = list(input_data[0].columns)
+        out_features.remove(trained_param)
+        #print(out_features)
+        df = input_data[:]
+        val_to_pos = [trained_param]
+        
+        #norms = norm_factors
+        
+        # How much data from the past should we need for a forecast?
+        window_len = 48
+        
+        
+        
+        # How far ahead do we want to generate forecasts?
+        forecast_len = 48
+        
+        input_data_before = df[:][:window_len]
+        
+        input_data_after = df[0:-1][window_len:]
+        print(input_data)
+        dataset_before = np.array(input_data_before)
+        len_feature_before = 28
+        
+        dataset_after = np.array(input_data_after)
+        
+        len_feature_after = 27
+        
+        input_data = dataset_before.reshape(1, window_len, len_feature_before),\
+            dataset_after.reshape(1, forecast_len, len_feature_after)
+        
+        pred = model.predict(input_data)
+        pred = pred.flatten()
+        pred_df = pd.DataFrame()
+        pred_df['UTC'] = input_data_after.index
+        pred_df[trained_param] = pred
+        pred_df = pred_df.set_index('UTC')
+        
+        
+        
+        return pred_df
+
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
-path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
+home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
+EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
 
-os.chdir(path)
+os.chdir(EN_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -81,8 +147,10 @@ dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
-old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
-os.chdir(old_path)
+home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
+EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
+
+os.chdir(EN_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
@@ -163,7 +231,7 @@ history = model.fit(X_train_windowed ,epochs=20, validation_data=(X_val_windowed
 model.save('LSTM_20Epochs_tester.h5')
 
 #%%
-loaded_model = keras.models.load_model('LSTM_20Epochs_tester.h5')  
+loaded_model = keras.models.load_model('LSTM_100Epochs_tester.h5')  
 
 #%%
 history_dict = history.history
@@ -194,12 +262,7 @@ cat_time = pd.get_dummies(forecast_df['hour'])
 forecast_df = forecast_df.join(cat_time)
 forecast_df = forecast_df.drop(columns=['hour'])
 forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
-
-#%%
-forecast_con_scaler = preprocessing.MinMaxScaler()
-forecast_con_scaler = forecast_con_scaler.fit(forecast_con)
-forecast_scaler = preprocessing.MinMaxScaler()
-forecast_df[['grad_dage','radia_glob_past1h','Con']] = forecast_scaler.fit_transform(forecast_df[['grad_dage','radia_glob_past1h','Con']])
+forecast_df[['grad_dage','radia_glob_past1h','Con']] = scaler.fit_transform(forecast_df[['grad_dage','radia_glob_past1h','Con']])
 
 #%%
 forecast_windowed = create_dataset(forecast_df,27,48,48,1)
@@ -215,7 +278,9 @@ windows = 10
 test_pred = []
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data
-    test_pred.append(loaded_model.predict((past,future)))
+    #print(past)
+    model_pred = loaded_model.predict((past,future))
+    test_pred.append(model_pred)
 predicitions_unload = []
 for i in range(0,windows):
   for l in range(0,48):
@@ -241,11 +306,11 @@ fig.tight_layout()
 plt.show()
 
 #%%
-forecast_pred_rescaled = forecast_con_scaler.inverse_transform(pd.DataFrame(predicitions_unload))
+forecast_pred_rescaled = con_scaler.inverse_transform(pd.DataFrame(predicitions_unload))
 
 
 # %%
-forecast_mse = mean_squared_error(forecast_con,test_pred)
+forecast_mse = mean_squared_error(forecast_con[48:len(forecast_pred_rescaled)+48],forecast_pred_rescaled)
 forecast_mse
 
 #%%
@@ -253,3 +318,15 @@ naive_y_val = np.roll(forecast_con,48)
 naive_forecast_mse = mean_squared_error(forecast_con,naive_y_val)
 naive_forecast_mse
 #%%
+dms_forecast = create_input_dms(forecast_df[:100])
+
+preds = predict(loaded_model, dms_forecast)
+
+
+
+
+
+
+
+
+

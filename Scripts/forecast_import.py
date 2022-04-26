@@ -44,7 +44,7 @@ row_counter = 0
 items = [item[1] for item in list(dictio.items())]
 forecast_df = pd.DataFrame(columns = items[0].columns)
 
-while row_counter < 2911:
+while row_counter < 2920:
     dict_counter = 0
     counter = 0
     while dict_counter < 48:
