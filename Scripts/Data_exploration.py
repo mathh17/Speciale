@@ -5,15 +5,17 @@ import numpy as np
 import pandas as pd
 import Holidays_calc as hc
 from matplotlib import pyplot as plt
-import seaborn as sns
+from matplotlib import dates
+#import seaborn as sns
 from sklearn import metrics
+
 
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
-energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\stations_data_dk2'
-os.chdir(home_path)
+energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
+os.chdir(energinet_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -43,7 +45,7 @@ dk2_mean.head()
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(home_path)
+os.chdir(EN_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
@@ -94,6 +96,7 @@ def get_forecast_merged(pred_ahead):
         pred_counter +=1
     forecast_dict[pred_ahead]['mean_temp'] = forecast_dict[pred_ahead]['mean_temp'] - 272.15
     forecast_merge = pd.merge(dk2_mean,forecast_dict[pred_ahead],how='inner', on='time')
+    forecast_merge = forecast_merge.sort_values(by='time')
     return forecast_merge
 
 #%%
@@ -233,14 +236,18 @@ ax1.set_title("Day of the week vs consumption")  # Add a title to the axes.
 """
 
 """
-y2 = forecast_merge['mean_temp']
-y1 = forecast_merge['temp_mean_past1h']
+months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+y2 = forecast_merge[:-1]['mean_temp']
+y1 = forecast_merge[:-1]['temp_mean_past1h']
 x = range(0,len(y1))
 fig = plt.figure()
 ax = fig.add_subplot()
 ax.plot(x, y1, color='tab:blue', label='Observed values')
 ax.plot(x, y2, color='tab:orange', label='Forecast values')
 ax.set_ylabel('temperature')
+ax.set_xticks(range(0,2914,250))
+ax.set_xticklabels(months)
 ax.set_xlabel('hours')
 ax.set_title('Plot of observed and forecast temperatures in celsius')
 ax.legend()
@@ -249,17 +256,20 @@ ax.legend()
 """
 
 """
-y2 = forecast_merge['mean_radi']
-y1 = forecast_merge['radia_glob_past1h']
+
+y2 = forecast_merge[:-1]['mean_radi']
+y1 = forecast_merge[:-1]['radia_glob_past1h']
 x = range(0,len(y1))
 fig = plt.figure()
 ax = fig.add_subplot()
 ax.plot(x, y1, color='tab:blue', label='Observed values')
 ax.plot(x, y2, color='tab:orange', label='Forecast values')
 ax.set_ylabel('radiation')
+ax.set_xticks(range(0,2914,250))
+ax.set_xticklabels(months)
 ax.set_xlabel('hours')
 ax.set_title('Plot of observed and forecast radiation levels measured in kW/m2')
 ax.legend()
 # %%
-metrics.r2_score(y1,y2)
+print(metrics.r2_score(y1,y2))
 #%%

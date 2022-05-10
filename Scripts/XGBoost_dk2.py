@@ -4,18 +4,19 @@ import numpy as np
 import pandas as pd
 import Holidays_calc as hc
 from matplotlib import pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import r2_score
-import shap
+#import shap
 
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
 path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
+EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
 
-os.chdir(path)
+os.chdir(EN_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -43,7 +44,9 @@ dk2_mean.head()
 # Read Enernginet Pickle Data
 # Change back path
 old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
-os.chdir(old_path)
+EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
+
+os.chdir(EN_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations

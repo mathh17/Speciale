@@ -56,7 +56,7 @@ def create_dataset(df, n_deterministic_features,
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk1'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk1'
 
-os.chdir(home_path)
+os.chdir(EN_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -86,7 +86,7 @@ dk2_mean.head()
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(home_path)
+os.chdir(EN_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk1")
 
 #Merge data into one DF, on the hour of observations
@@ -138,7 +138,7 @@ X_train_windowed = create_dataset(train_set,27,48,48,32)
 X_val_windowed = create_dataset(val_set,27,48,48,32)
 
 #%%
-earlystopping = EarlyStopping(patience=5)
+earlystopping = EarlyStopping(patience=3)
 # Setting up more layed LSTM which uses the encoding
 Latent_dims = 16
 past_inputs = tf.keras.Input(shape=(48,28), name='past_inputs')
@@ -205,11 +205,11 @@ forecast_df[['grad_dage','radia_glob_past1h','Con']] = scaler.transform(forecast
 forecast_windowed = create_dataset(forecast_df,27,48,48,1)
 
 #%%
-windows = 2
+windows = 3000
 test_pred = pd.DataFrame()
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data
-    model_pred = model.predict((past,future))
+    model_pred = loaded_model.predict((past,future))
     window_df = pd.DataFrame(columns=['truth','pred'])
     window_df['truth'] = truth.numpy()[0]
     window_df['pred'] = pd.DataFrame(model_pred[0])
@@ -217,10 +217,11 @@ for i, data in enumerate(forecast_windowed.take(windows)):
 
 #%%
 
-range_len = windows * 48
+
 test_plot = pd.DataFrame()
 test_plot['exact_values'] = test_pred['truth']
 test_plot['predicted_values'] = test_pred['pred']
+range_len = len(test_plot)
 test_plot = test_plot.reset_index()
 fig = plt.figure(figsize=(6, 6))
 plt.subplot(1, 1, 1)
