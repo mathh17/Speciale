@@ -1,15 +1,17 @@
 #%%
+from cProfile import label
 import os
 import numpy as np
 import pandas as pd
 import Holidays_calc as hc
 from matplotlib import pyplot as plt
 import seaborn as sns
+from sklearn import metrics
 
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
-home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
+home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
 energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\stations_data_dk2'
 os.chdir(home_path)
 
@@ -26,8 +28,10 @@ for file in os.listdir():
         radi_conc_data = pd.merge(radi_conc_data,df[['time','radia_glob_past1h']],on='time',how='outer', suffixes=(['old','_{}'.format(file_name)]))
 
 # takes all the columns and calculates the mean for each row. which gives us a mean value for all stations at the given time.
-temp_conc_data['mean'] = temp_conc_data.iloc[:,1:12].sum(axis=1) / 11
-radi_conc_data['mean'] = radi_conc_data.iloc[:,1:7].sum(axis=1) / 6
+num_columns_temp = temp_conc_data.shape[1]
+num_columns_radi = radi_conc_data.shape[1]
+temp_conc_data['mean'] = temp_conc_data.iloc[:,1:num_columns_temp].sum(axis=1) / (num_columns_temp-1)
+radi_conc_data['mean'] = radi_conc_data.iloc[:,1:num_columns_radi].sum(axis=1) / (num_columns_radi-1)
 dk2_mean = pd.DataFrame()
 dk2_mean['time'] = temp_conc_data['time']
 dk2_mean['temp_mean_past1h'] = temp_conc_data['mean']
@@ -36,18 +40,11 @@ dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
-old_home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
-old_energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
+home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
+EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(old_home_path)
-df_DK1_2010_2015 = pd.read_pickle("data/dk1_data_2010_2015.pkl")
-df_DK2_2010_2015 = pd.read_pickle("data/dk2_data_2010_2015.pkl")
-df_DK1_2015_2020 = pd.read_pickle("data/dk1_data_2015_2020.pkl")
-df_DK2_2015_2020 = pd.read_pickle("data/dk2_data_2015_2020.pkl")
-df_DK1_2020_2022 = pd.read_pickle("data/dk1_data_2020_2022.pkl")
-df_DK2_2020_2022 = pd.read_pickle("data/dk2_data_2020_2022.pkl")
-df_DK1 = pd.concat([df_DK1_2010_2015,df_DK1_2015_2020,df_DK1_2020_2022], ignore_index=True)
-df_DK2 = pd.concat([df_DK2_2010_2015,df_DK2_2015_2020,df_DK2_2020_2022], ignore_index=True)
+os.chdir(home_path)
+df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
 dk2_mean['time'] = pd.to_datetime(dk2_mean['time'],format='%Y-%m-%dT%H:%M:%S', utc=True)
@@ -234,13 +231,35 @@ ax2.legend();  # Add a legend.
 ax1.set_title("Day of the week vs consumption")  # Add a title to the axes.
 #%%
 """
-Plotting the day of the week and the consumption in two graphs next to eachother.
-This is only for 1000 hours, else it is not possible to see anything
+
 """
-y1 = forecast_merge['mean_temp']
-y2 = forecast_merge['temp_mean_past1h']
+y2 = forecast_merge['mean_temp']
+y1 = forecast_merge['temp_mean_past1h']
 x = range(0,len(y1))
 fig = plt.figure()
-ax = fig.add_subplot(1, 1, 1)
-ax.plot(x[0:300], y1[0:300], color='tab:blue')
-ax.plot(x[0:300], y2[0:300], color='tab:orange')
+ax = fig.add_subplot()
+ax.plot(x, y1, color='tab:blue', label='Observed values')
+ax.plot(x, y2, color='tab:orange', label='Forecast values')
+ax.set_ylabel('temperature')
+ax.set_xlabel('hours')
+ax.set_title('Plot of observed and forecast temperatures in celsius')
+ax.legend()
+
+#%%
+"""
+
+"""
+y2 = forecast_merge['mean_radi']
+y1 = forecast_merge['radia_glob_past1h']
+x = range(0,len(y1))
+fig = plt.figure()
+ax = fig.add_subplot()
+ax.plot(x, y1, color='tab:blue', label='Observed values')
+ax.plot(x, y2, color='tab:orange', label='Forecast values')
+ax.set_ylabel('radiation')
+ax.set_xlabel('hours')
+ax.set_title('Plot of observed and forecast radiation levels measured in kW/m2')
+ax.legend()
+# %%
+metrics.r2_score(y1,y2)
+#%%

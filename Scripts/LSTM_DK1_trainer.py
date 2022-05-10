@@ -50,78 +50,11 @@ def create_dataset(df, n_deterministic_features,
                                k[-forecast_size:, -1]))
 
     return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
-
-def create_input_dms(df):
-
-
-    previous_hours_input = 48
-
-    forecast_hours_ahead = 48
-
-
-    input_data_list = []
-
-    for i in range(len(df)-previous_hours_input-forecast_hours_ahead):
-
-        known_data = df.iloc[i:i+previous_hours_input+forecast_hours_ahead].copy()
-
-        input_data_list.append(known_data)
-
-    return input_data_list
-
-
-def predict(model, input_data):
-        #model = trained_model.models[identifier]
-        #norm_factors = trained_model.params[identifier]
-        #print(input_data)
-        trained_param = 'Con'
-        features = list(input_data[0].columns)
-        out_features = list(input_data[0].columns)
-        out_features.remove(trained_param)
-        #print(out_features)
-        df = input_data[:]
-        val_to_pos = [trained_param]
-        
-        #norms = norm_factors
-        
-        # How much data from the past should we need for a forecast?
-        window_len = 48
-        
-        
-        
-        # How far ahead do we want to generate forecasts?
-        forecast_len = 48
-        
-        input_data_before = df[:][:window_len]
-        
-        input_data_after = df[0:-1][window_len:]
-        print(input_data)
-        dataset_before = np.array(input_data_before)
-        len_feature_before = 28
-        
-        dataset_after = np.array(input_data_after)
-        
-        len_feature_after = 27
-        
-        input_data = dataset_before.reshape(1, window_len, len_feature_before),\
-            dataset_after.reshape(1, forecast_len, len_feature_after)
-        
-        pred = model.predict(input_data)
-        pred = pred.flatten()
-        pred_df = pd.DataFrame()
-        pred_df['UTC'] = input_data_after.index
-        pred_df[trained_param] = pred
-        pred_df = pred_df.set_index('UTC')
-        
-        
-        
-        return pred_df
-
 #%%
-# read the files from the datafolder containing data fra DK2
+# read the files from the datafolder containing data fra DK1
 # changing the path to the datafolder
-home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
-EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
+home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk1'
+EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk1'
 
 os.chdir(home_path)
 
@@ -154,7 +87,7 @@ home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
 os.chdir(home_path)
-df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
+df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk1")
 
 #Merge data into one DF, on the hour of observations
 dk2_mean['time'] = pd.to_datetime(dk2_mean['time'],format='%Y-%m-%dT%H:%M:%S', utc=True)
@@ -224,7 +157,7 @@ output = layers.Dense(1,activation='relu')(non_com_model)
 
 model = tf.keras.models.Model(inputs=[past_inputs,future_inputs], outputs=output)
 optimizer = tf.keras.optimizers.SGD(momentum=0.1, lr=0.01)
-loss = tf.keras.losses.mean_squared_error()
+loss = tf.keras.losses.MeanSquaredError()
 model.compile(loss=loss,optimizer=optimizer,metrics=['mse'])
 model.summary()
 #%%
@@ -232,10 +165,10 @@ model.summary()
 history = model.fit(X_train_windowed ,epochs=200, validation_data=(X_val_windowed), callbacks=[earlystopping], verbose=2)
 
 #%%
-model.save('LSTM_DK2_154_epochs.h5')
+model.save('LSTM_DK1_178_epochs.h5')
 
 #%%
-loaded_model = keras.models.load_model('LSTM_DK2_154_epochs.h5')  
+loaded_model = keras.models.load_model('LSTM_DK1_178_epochs.h5')  
 
 #%%
 history_dict = history.history
@@ -250,7 +183,7 @@ plt.show
 #%%
 #------ IMPORT FORECAST DATA----------
 #%%
-forecast_df = pd.read_parquet('Data/dk2_forecast_sorted')
+forecast_df = pd.read_parquet('Data/dk1_forecast_sorted')
 forecast_df = data_encoder(forecast_df)
 forecast_df['hour'] = forecast_df['time'].dt.hour
 forecast_df = forecast_df.drop(columns=['predicted_ahead'])
@@ -272,7 +205,7 @@ forecast_df[['grad_dage','radia_glob_past1h','Con']] = scaler.transform(forecast
 forecast_windowed = create_dataset(forecast_df,27,48,48,1)
 
 #%%
-windows = 1000
+windows = 2
 test_pred = pd.DataFrame()
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data

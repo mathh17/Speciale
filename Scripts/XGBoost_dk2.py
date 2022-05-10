@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 import xgboost as xgb
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import r2_score
 import shap
 
 #%%
@@ -174,8 +175,9 @@ forecast_xgb = xgb.DMatrix(forecast_df,forecast_con)
 forecast_preds = bst.predict(forecast_xgb)
 # %%
 forecast_mse = mean_squared_error(forecast_con,forecast_preds)
-forecast_mse
-
+forecast_r2 = r2_score(forecast_con,forecast_preds)
+print('forecast r2 score: '+ str(forecast_r2))
+print('Forecast mse: '+ str(forecast_mse))
 #%%
 naive_y_val = np.roll(forecast_con,24)
 naive_forecast_mse = mean_squared_error(forecast_con,naive_y_val)
