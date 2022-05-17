@@ -16,7 +16,7 @@ from sklearn.metrics import r2_score
 path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk1'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk1'
 
-os.chdir(path)
+os.chdir(EN_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -43,10 +43,10 @@ dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
-old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
+path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(old_path)
+os.chdir(EN_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk1")
 
 #Merge data into one DF, on the hour of observations
@@ -97,11 +97,11 @@ val_set = val_set.reindex(columns=['grad_dage',	'radia_glob_past1h', 'is_holiday
 dtrain = xgb.DMatrix(train_set,y_train)
 dval = xgb.DMatrix(val_set,y_val)
 #%%
-depth_param =  [6,8,10]
-eta_param =  [0.1,0.03,0.01]
-gamma_param =  [4,6,8]
-rounds_param =  [100,250,500,1000]
-min_child_param = [3,5,8]
+depth_param =  [8,10,12,14]
+eta_param =  [0.03,0.01]
+gamma_param =  [4]
+rounds_param =  [100,500,1000]
+min_child_param = [8,10,12]
 results = []
 for depth in depth_param:
     for eta in eta_param:
@@ -124,12 +124,12 @@ results.columns=['val_mse','Tree depth','Eta/learning rate','gamma','min_child_w
 
 #%%
 param = {'max_depth':10, 
-                        'eta':0.03, 
-                        'gamma':6,
+                        'eta':0.01, 
+                        'gamma':4,
                         'min_child_weight':8,
                         'objective':'reg:squarederror',
                         'seed':42}
-num_round = 100
+num_round = 500
 bst = xgb.train(param, dtrain,num_round)
 val_preds = bst.predict(dval)
 
@@ -140,8 +140,10 @@ print('Forecast mse: '+ str(mse))
 #%%
 naive_y_val = np.roll(y_val,48)
 
-mse = mean_squared_error(y_val,naive_y_val)
-mse
+naive_mse = mean_squared_error(y_val,naive_y_val)
+naive_val_r2= r2_score(y_val,naive_y_val)
+print('forecast r2 score: '+ str(naive_val_r2))
+print('Forecast mse: '+ str(naive_mse))
 #%%
 
 test_plot = pd.DataFrame()
@@ -190,5 +192,5 @@ print('Forecast mse: '+ str(forecast_mse))
 #%%
 naive_y_val = np.roll(forecast_con,24)
 naive_forecast_mse = mean_squared_error(forecast_con,naive_y_val)
-naive_forecast_mse
+print(naive_forecast_mse)
 #%%

@@ -16,7 +16,7 @@ from sklearn.metrics import r2_score
 path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
 
-os.chdir(path)
+os.chdir(EN_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -46,7 +46,7 @@ dk2_mean.head()
 old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(old_path)
+os.chdir(EN_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
@@ -138,10 +138,12 @@ val_r2= r2_score(y_val,val_preds)
 print('forecast r2 score: '+ str(val_r2))
 print('Forecast mse: '+ str(mse))
 #%%
-naive_y_val = np.roll(y_val,48)
+naive_y_val = np.roll(y_val,24)
 
-mse = mean_squared_error(y_val,naive_y_val)
-mse
+naive_mse = mean_squared_error(y_val,naive_y_val)
+naive_val_r2= r2_score(y_val,naive_y_val)
+print('forecast r2 score: '+ str(naive_val_r2))
+print('Forecast mse: '+ str(naive_mse))
 #%%
 
 test_plot = pd.DataFrame()
