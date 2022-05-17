@@ -16,7 +16,7 @@ from sklearn.metrics import r2_score
 path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
 
-os.chdir(EN_path)
+os.chdir(path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -46,7 +46,7 @@ dk2_mean.head()
 old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(EN_path)
+os.chdir(old_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
@@ -97,32 +97,36 @@ val_set = val_set.reindex(columns=['grad_dage',	'radia_glob_past1h', 'is_holiday
 dtrain = xgb.DMatrix(train_set,y_train)
 dval = xgb.DMatrix(val_set,y_val)
 #%%
-depth_param =  [3,4,6,8,10]
+depth_param =  [6,8,10]
 eta_param =  [0.1,0.03,0.01]
-gamma_param =  [2,4,6,8]
+gamma_param =  [4,6,8]
 rounds_param =  [100,250,500,1000]
+min_child_param = [3,5,8]
 results = []
 for depth in depth_param:
     for eta in eta_param:
         for gamma in gamma_param:
             for rounds in rounds_param:
-                param = {'max_depth':depth, 
-                        'eta':eta, 
-                        'gamma': gamma,
-                        'objective':'reg:squarederror',
-                        'seed':42}
-                num_round = rounds
-                bst = xgb.train(param, dtrain,num_round)
-                val_preds = bst.predict(dval)
-                val_mse = mean_squared_error(y_val,val_preds)
-                results.append([val_mse,depth,eta,gamma,rounds])
+                for children in min_child_param:
+                    param = {'max_depth':depth, 
+                            'eta':eta, 
+                            'gamma': gamma,
+                            'min_child_weight':children,
+                            'objective':'reg:squarederror',
+                            'seed':42}
+                    num_round = rounds
+                    bst = xgb.train(param, dtrain,num_round)
+                    val_preds = bst.predict(dval)
+                    val_mse = mean_squared_error(y_val,val_preds)
+                    results.append([val_mse,depth,eta,gamma,children,rounds])
 results = pd.DataFrame(results)
-results.columns=['val_mse','Tree depth','Eta/learning rate','gamma','rounds']
+results.columns=['val_mse','Tree depth','Eta/learning rate','gamma','min_child_weight','rounds']
 
 #%%
 param = {'max_depth':10, 
                         'eta':0.03, 
                         'gamma':6,
+                        'min_child_weight':8,
                         'objective':'reg:squarederror',
                         'seed':42}
 num_round = 100
@@ -130,7 +134,9 @@ bst = xgb.train(param, dtrain,num_round)
 val_preds = bst.predict(dval)
 
 mse = mean_squared_error(y_val,val_preds)
-mse
+val_r2= r2_score(y_val,val_preds)
+print('forecast r2 score: '+ str(val_r2))
+print('Forecast mse: '+ str(mse))
 #%%
 naive_y_val = np.roll(y_val,48)
 
@@ -186,3 +192,20 @@ naive_y_val = np.roll(forecast_con,24)
 naive_forecast_mse = mean_squared_error(forecast_con,naive_y_val)
 naive_forecast_mse
 #%%
+test_plot = pd.DataFrame()
+test_plot['exact_values'] = forecast_con
+test_plot['predicted_values'] = forecast_preds
+test_plot = test_plot.reset_index()
+range_len = len(forecast_preds)
+fig = plt.figure(figsize=(6, 6))
+plt.subplot(1, 1, 1)
+plt.title('Predicts vs Exact values')
+plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
+         label='Exact values')
+plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
+         label='Precited Values')
+plt.legend(loc='upper right')
+plt.ylabel('Consumption')
+fig.tight_layout()
+plt.show()
+# %%

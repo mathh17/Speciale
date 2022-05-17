@@ -56,7 +56,7 @@ def create_dataset(df, n_deterministic_features,
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk1'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk1'
 
-os.chdir(EN_path)
+os.chdir(home_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -86,7 +86,7 @@ dk2_mean.head()
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(EN_path)
+os.chdir(home_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk1")
 
 #Merge data into one DF, on the hour of observations
@@ -162,13 +162,13 @@ model.compile(loss=loss,optimizer=optimizer,metrics=['mse'])
 model.summary()
 #%%
 # Fit the model to our data
-history = model.fit(X_train_windowed ,epochs=200, validation_data=(X_val_windowed), callbacks=[earlystopping], verbose=2)
+history = model.fit(X_train_windowed ,epochs=1000, validation_data=(X_val_windowed), callbacks=[earlystopping], verbose=2)
 
 #%%
-model.save('LSTM_DK1_178_epochs.h5')
+model.save('LSTM_DK1_1000_epochs.h5')
 
 #%%
-loaded_model = keras.models.load_model('LSTM_DK1_178_epochs.h5')  
+loaded_model = keras.models.load_model('LSTM_DK1_1000_epochs.h5')  
 
 #%%
 history_dict = history.history
