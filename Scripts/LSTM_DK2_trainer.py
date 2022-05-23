@@ -57,7 +57,7 @@ def create_dataset(df, n_deterministic_features,
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
 
-os.chdir(EN_path)
+os.chdir(home_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -87,7 +87,7 @@ dk2_mean.head()
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(EN_path)
+os.chdir(home_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
@@ -150,11 +150,11 @@ future_inputs = tf.keras.Input(shape=(48,27), name='future_inputs')
 decoder_lstm = layers.LSTM(Latent_dims, return_sequences=True, dropout=0.2)
 non_com_model = decoder_lstm(future_inputs, initial_state=[state_h,state_c])
 
-non_com_model = layers.Dense(Latent_dims,activation='relu')(non_com_model)
+non_com_model = layers.Dense(Latent_dims*2,activation='elu')(non_com_model)
 non_com_model = layers.Dropout(0.2)(non_com_model)
-non_com_model = layers.Dense(Latent_dims,activation='relu')(non_com_model)
+non_com_model = layers.Dense(Latent_dims*4,activation='elu')(non_com_model)
 non_com_model = layers.Dropout(0.2)(non_com_model)
-output = layers.Dense(1,activation='relu')(non_com_model)
+output = layers.Dense(1,activation='elu')(non_com_model)
 
 model = tf.keras.models.Model(inputs=[past_inputs,future_inputs], outputs=output)
 optimizer = tf.keras.optimizers.SGD(momentum=0.1, lr=0.01)
@@ -169,7 +169,7 @@ history = model.fit(X_train_windowed ,epochs=1000, validation_data=(X_val_window
 model.save('LSTM_DK2_1000_epochs.h5')
 
 #%%
-loaded_model = keras.models.load_model('LSTM_DK2_154_epochs.h5')  
+loaded_model = keras.models.load_model('LSTM_DK2_1000_epochs.h5')  
 
 #%%
 history_dict = history.history
@@ -177,9 +177,58 @@ loss_vals = history_dict['loss']
 val_loss = history_dict['val_loss']
 epochs = range(1,len(loss_vals)+1)
 
-plt.plot(epochs, loss_vals, 'bo')
-plt.plot(epochs, val_loss, 'b')
+plt.plot(epochs, loss_vals, 'bo', label='Training loss')
+plt.plot(epochs, val_loss, 'b', label='Validation loss')
+plt.legend(loc='upper right')
+plt.xlabel('Epochs')
+plt.ylabel('Loss values')
+
 plt.show
+
+#%%
+windows = 545
+val_pred = pd.DataFrame()
+for i, data in enumerate(X_val_windowed.take(windows)):
+    (past, future),truth = data
+    model_pred = loaded_model.predict((past,future))
+    window_df = pd.DataFrame(columns=['truth','pred'])
+    window_df['truth'] = truth.numpy()[0]
+    window_df['pred'] = pd.DataFrame(model_pred[0])
+    val_pred = pd.concat([val_pred,window_df])
+
+#%%
+range_len = windows * 48
+test_plot = pd.DataFrame()
+test_plot['exact_values'] = val_pred['truth']
+test_plot['predicted_values'] = val_pred['pred']
+test_plot = test_plot.reset_index()
+fig = plt.figure(figsize=(10, 6))
+plt.subplot(1, 1, 1)
+plt.title('Predicts vs Exact values for the LSTM model on DK2')
+plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
+         label='Exact values')
+plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
+         label='Precited Values')
+plt.legend(loc='upper right')
+plt.ylabel('Consumption')
+plt.xlabel('Time Steps')
+fig.tight_layout()
+plt.show()
+
+#%%
+val_pred_rescaled = con_scaler.inverse_transform(pd.DataFrame(val_pred['pred']))
+val_truth_rescaled = con_scaler.inverse_transform(pd.DataFrame(val_pred['truth']))
+
+forecast_mse = mean_squared_error(val_truth_rescaled,val_pred_rescaled)
+forecast_r2 = r2_score(val_truth_rescaled,val_pred_rescaled)
+print('forecast r2 score: '+ str(forecast_r2))
+print('Forecast mse: '+ str(forecast_mse))
+#%%
+naive_y_val = np.roll(val_truth_rescaled,24)
+naive_forecast_mse = mean_squared_error(val_truth_rescaled,naive_y_val)
+naive_forecast_r2 = r2_score(val_truth_rescaled,naive_y_val)
+print('baseline r2 score: '+ str(naive_forecast_r2))
+print('Baseline mse: '+ str(naive_forecast_mse))
 
 #%%
 #------ IMPORT FORECAST DATA----------
@@ -217,21 +266,21 @@ for i, data in enumerate(forecast_windowed.take(windows)):
     test_pred = pd.concat([test_pred,window_df])
 
 #%%
-
-range_len = windows * 48
 test_plot = pd.DataFrame()
-test_plot['exact_values'] = test_pred['truth']
-test_plot['predicted_values'] = test_pred['pred']
+test_plot['exact_values'] = test_pred['truth'][0:100]
+test_plot['predicted_values'] = test_pred['pred'][0:100]
 test_plot = test_plot.reset_index()
+range_len = len(test_plot)
 fig = plt.figure(figsize=(6, 6))
 plt.subplot(1, 1, 1)
-plt.title('Predicts vs Exact values')
+plt.title('Predicts vs Exact values for DK2 by the LSTM model')
 plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
          label='Exact values')
 plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
          label='Precited Values')
-plt.legend(loc='upper right')
+plt.legend(loc='upper left')
 plt.ylabel('Consumption')
+plt.xlabel('Time steps')
 fig.tight_layout()
 plt.show()
 
@@ -239,8 +288,6 @@ plt.show()
 forecast_pred_rescaled = con_scaler.inverse_transform(pd.DataFrame(test_pred['pred']))
 forecast_truth_rescaled = con_scaler.inverse_transform(pd.DataFrame(test_pred['truth']))
 
-
-# %%
 forecast_mse = mean_squared_error(forecast_truth_rescaled,forecast_pred_rescaled)
 forecast_r2 = r2_score(forecast_truth_rescaled,forecast_pred_rescaled)
 print('forecast r2 score: '+ str(forecast_r2))
