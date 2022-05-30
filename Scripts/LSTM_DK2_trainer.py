@@ -30,6 +30,33 @@ def create_dataset(df, n_deterministic_features,
                    window_size, forecast_size,
                    batch_size):
     # Feel free to play with shuffle buffer size
+    
+    shuffle_buffer_size = len(df)
+    # Total size of window is given by the number of steps to be considered
+    # before prediction time + steps that we want to forecast
+    total_size = window_size + forecast_size
+
+    data = tf.data.Dataset.from_tensor_slices(df.values)
+
+    # Selecting windows
+    data = data.window(total_size, shift=1, drop_remainder=True)
+    data = data.flat_map(lambda k: k.batch(total_size))
+
+    #Shuffling data (seed=Answer to the Ultimate Question of Life, the Universe, and Everything)
+    data = data.shuffle(shuffle_buffer_size, seed=42)
+
+    # Extracting past features + deterministic future + labels
+    data = data.map(lambda k: ((k[:-forecast_size],
+                                k[-forecast_size:, 0:n_deterministic_features]),
+                               k[-forecast_size:, -1]))
+
+    return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+
+def create_dataset_non_shuffled(df, n_deterministic_features,
+                   window_size, forecast_size,
+                   batch_size):
+    # Feel free to play with shuffle buffer size
+    
     #shuffle_buffer_size = len(df)
     # Total size of window is given by the number of steps to be considered
     # before prediction time + steps that we want to forecast
@@ -41,7 +68,7 @@ def create_dataset(df, n_deterministic_features,
     data = data.window(total_size, shift=1, drop_remainder=True)
     data = data.flat_map(lambda k: k.batch(total_size))
 
-    # Shuffling data (seed=Answer to the Ultimate Question of Life, the Universe, and Everything)
+    #Shuffling data (seed=Answer to the Ultimate Question of Life, the Universe, and Everything)
     #data = data.shuffle(shuffle_buffer_size, seed=42)
 
     # Extracting past features + deterministic future + labels
@@ -51,6 +78,19 @@ def create_dataset(df, n_deterministic_features,
 
     return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
+
+
+def daily_meaner(df):
+    df_len = len(df) / 365
+    weekly_con = []
+    iterations = 1
+    while iterations <= 365:
+        hours_in_a_week = int(df_len*iterations)
+        #one_week_con = 0
+        one_week_con = (df[int(hours_in_a_week-df_len):hours_in_a_week].sum())/df_len
+        weekly_con.append(one_week_con)
+        iterations += 1
+    return weekly_con
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
@@ -163,13 +203,13 @@ model.compile(loss=loss,optimizer=optimizer,metrics=['mse'])
 model.summary()
 #%%
 # Fit the model to our data
-history = model.fit(X_train_windowed ,epochs=1000, validation_data=(X_val_windowed), verbose=2)
+history = model.fit(X_train_windowed ,epochs=150, validation_data=(X_val_windowed), verbose=2)
 
 #%%
-model.save('LSTM_DK2_1000_epochs.h5')
+model.save('LSTM_DK2_shuffled.h5')
 
 #%%
-loaded_model = keras.models.load_model('LSTM_DK2_1000_epochs.h5')  
+loaded_model = keras.models.load_model('LSTM_DK2_shuffled.h5')  
 
 #%%
 history_dict = history.history
@@ -252,10 +292,10 @@ forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is
 forecast_df[['grad_dage','radia_glob_past1h','Con']] = scaler.transform(forecast_df[['grad_dage','radia_glob_past1h','Con']])
 
 #%%
-forecast_windowed = create_dataset(forecast_df,27,48,48,1)
+forecast_windowed = create_dataset_non_shuffled(forecast_df,27,48,48,48)
 
 #%%
-windows = 3000
+windows = 2850
 test_pred = pd.DataFrame()
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data
@@ -265,24 +305,7 @@ for i, data in enumerate(forecast_windowed.take(windows)):
     window_df['pred'] = pd.DataFrame(model_pred[0])
     test_pred = pd.concat([test_pred,window_df])
 
-#%%
-test_plot = pd.DataFrame()
-test_plot['exact_values'] = test_pred['truth'][0:100]
-test_plot['predicted_values'] = test_pred['pred'][0:100]
-test_plot = test_plot.reset_index()
-range_len = len(test_plot)
-fig = plt.figure(figsize=(6, 6))
-plt.subplot(1, 1, 1)
-plt.title('Predicts vs Exact values for DK2 by the LSTM model')
-plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
-         label='Exact values')
-plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
-         label='Precited Values')
-plt.legend(loc='upper left')
-plt.ylabel('Consumption')
-plt.xlabel('Time steps')
-fig.tight_layout()
-plt.show()
+
 
 #%%
 forecast_pred_rescaled = con_scaler.inverse_transform(pd.DataFrame(test_pred['pred']))
@@ -299,4 +322,46 @@ naive_forecast_r2 = r2_score(forecast_con,naive_y_val)
 print('baseline r2 score: '+ str(naive_forecast_r2))
 print('Baseline mse: '+ str(naive_forecast_mse))
 
+#%%
+test_plot = pd.DataFrame()
+test_plot['exact_values'] = forecast_truth_rescaled.flatten()
+test_plot['predicted_values'] = forecast_pred_rescaled
+test_plot = test_plot.reset_index()
+range_len = len(test_plot)
+fig = plt.figure(figsize=(10, 6))
+plt.subplot(1, 1, 1)
+plt.title('Predicted vs Exact values for DK2 by the LSTM model')
+plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
+         label='Exact values')
+plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
+         label='Precited Values')
+plt.legend(loc='upper right')
+plt.ylabel('Consumption')
+plt.xlabel('Time steps')
+fig.tight_layout()
+plt.show()
+
+#%%
+forecast_truth_weekly = daily_meaner(forecast_truth_rescaled)
+forecast_pred_weekly = daily_meaner(forecast_pred_rescaled)
+
+test_plot = pd.DataFrame()
+test_plot['exact_values'] = forecast_truth_weekly
+test_plot['predicted_values'] = forecast_pred_weekly
+range_len = len(test_plot)
+test_plot = test_plot.reset_index()
+fig = plt.figure(figsize=(15, 6))
+plt.subplot(1, 1, 1)
+plt.title('Predicted and Exact values for DK2 by the LSTM model', fontsize=20)
+plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
+         label='Exact values')
+plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
+         label='Precited Values')
+plt.legend(loc='upper right', fontsize=16)
+plt.ylabel('Consumption', fontsize=20)
+plt.xlabel('Days', fontsize=20)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+fig.tight_layout()
+plt.show()
 # %%

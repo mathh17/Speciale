@@ -15,7 +15,7 @@ from sklearn import metrics
 # changing the path to the datafolder
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
 energinet_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts\Data\dmi_data_dk2'
-os.chdir(energinet_path)
+os.chdir(home_path)
 
 temp_conc_data = pd.DataFrame(columns=['time'])
 radi_conc_data = pd.DataFrame(columns=['time'])
@@ -38,14 +38,13 @@ dk2_mean = pd.DataFrame()
 dk2_mean['time'] = temp_conc_data['time']
 dk2_mean['temp_mean_past1h'] = temp_conc_data['mean']
 dk2_mean['radia_glob_past1h'] = radi_conc_data['mean']
-dk2_mean.head()
 
 # Read Enernginet Pickle Data
 # Change back path
 home_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 EN_path = r'C:\Users\MTG.ENERGINET\OneDrive - Energinet.dk\Dokumenter\Speciale\Scripts'
 
-os.chdir(EN_path)
+os.chdir(home_path)
 df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations

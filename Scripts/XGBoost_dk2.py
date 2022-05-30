@@ -17,11 +17,25 @@ def holidays(df):
         is_holiday = hc.get_date_type(row['time'])
         holidays.append(is_holiday)
     return holidays
+
+
 def data_encoder(df): 
     df['time'] = pd.to_datetime(df['time'],format='%Y-%m-%dT%H:%M:%S', utc=True)
     df['is_holiday'] = holidays(df)
     return df
 
+
+def daily_meaner(df):
+    df_len = len(df) / 365
+    weekly_con = []
+    iterations = 1
+    while iterations <= 365:
+        hours_in_a_week = int(df_len*iterations)
+        #one_week_con = 0
+        one_week_con = (df[int(hours_in_a_week-df_len):hours_in_a_week].sum())/df_len
+        weekly_con.append(one_week_con)
+        iterations += 1
+    return weekly_con
 #%%
 Observed_data = pd.read_parquet('DK2_XGB_training_data')
 
@@ -72,6 +86,7 @@ param = {'max_depth':10,
                         'eta':0.03, 
                         'gamma':6,
                         'min_child_weight':8,
+                        'three_method': 'exact',
                         'objective':'reg:squarederror',
                         'seed':42}
 num_round = 100
@@ -124,12 +139,12 @@ forecast_df.loc[forecast_df['grad_dage'] <=0, 'grad_dage'] = 0
 forecast_df = forecast_df.rename(columns={'mean_radi':'radia_glob_past1h'})
 forecast_df = forecast_df.drop(columns=['mean_temp'])
 forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h', 'is_holiday', 'hour','Con'])
+
 forecast_con = forecast_df['Con']
 forecast_df = forecast_df.drop(columns=['Con'])
 forecast_xgb = xgb.DMatrix(forecast_df,forecast_con)
 # %%
 forecast_preds = bst.predict(forecast_xgb)
-# %%
 forecast_mse = mean_squared_error(forecast_con,forecast_preds)
 forecast_r2 = r2_score(forecast_con,forecast_preds)
 print('forecast r2 score: '+ str(forecast_r2))
@@ -142,21 +157,46 @@ print('forecast r2 score: '+ str(naive_forecast_mse))
 print('Forecast mse: '+ str(naive_forecast_r2))
 #%%
 test_plot = pd.DataFrame()
-test_plot['exact_values'] = forecast_con[0:100]
-test_plot['predicted_values'] = forecast_preds[0:100]
+test_plot['exact_values'] = forecast_con
+test_plot['predicted_values'] = forecast_preds
 test_plot = test_plot.reset_index()
 range_len = len(test_plot)
-fig = plt.figure(figsize=(6, 6))
+fig = plt.figure(figsize=(10, 6))
 plt.subplot(1, 1, 1)
-plt.title('Predicts vs Exact values by XGBoost model for DK2')
+plt.title('Predicts vs Exact values by XGBoost model for DK2', fontsize=16)
 plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
          label='Exact values')
 plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
          label='Precited Values')
 
-plt.legend(loc='upper left')
-plt.ylabel('Consumption')
-plt.xlabel('Time steps')
+plt.legend(loc='upper right', fontsize=16)
+plt.ylabel('Consumption', fontsize=16)
+plt.xlabel('Time steps', fontsize=16)
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=12)
+#fig.tight_layout()
+plt.show()
+# %%
+forecast_truth_weekly = daily_meaner(forecast_con)
+forecast_pred_weekly = daily_meaner(forecast_preds)
+
+test_plot = pd.DataFrame()
+test_plot['exact_values'] = forecast_truth_weekly
+test_plot['predicted_values'] = forecast_pred_weekly
+range_len = len(test_plot)
+test_plot = test_plot.reset_index()
+fig = plt.figure(figsize=(15, 6))
+plt.subplot(1, 1, 1)
+plt.title('Predicted and Exact values for DK2 by the XGB model', fontsize=20)
+plt.plot(np.arange(0,range_len), test_plot['exact_values'], 'r-',
+         label='Exact values')
+plt.plot(np.arange(0,range_len), test_plot['predicted_values'], 'b-',
+         label='Precited Values')
+plt.legend(loc='upper right', fontsize=16)
+plt.ylabel('Consumption', fontsize=20)
+plt.xlabel('Days', fontsize=20)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
 fig.tight_layout()
 plt.show()
 # %%
