@@ -313,7 +313,7 @@ forecast_val = forecast_val.drop(columns=['time'])
 #%%
 #Takes windows of the windowed forecast dataframe, the observed data is the used to find subsets from the observed values,
 #This assures that the predictions, get the data from the observed values as the past values and the forecasted data as the future values
-windows = 1
+windows = 2900
 test_pred = pd.DataFrame()
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data

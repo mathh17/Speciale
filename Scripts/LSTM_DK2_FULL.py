@@ -204,7 +204,7 @@ model.compile(loss=loss,optimizer=optimizer,metrics=['mse'])
 model.summary()
 #%%
 # Fit the model to our data
-history = model.fit(X_train_windowed ,epochs=150, validation_data=(X_val_windowed), verbose=2)
+history = model.fit(X_train_windowed ,epochs=1000, validation_data=(X_val_windowed), verbose=2)
 
 #%%
 #Save the model
