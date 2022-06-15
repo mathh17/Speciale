@@ -132,43 +132,35 @@ Plotting the Radiation and the consumption in two graphs next to eachother.
 y1 = conc_data['radia_glob_past1h'][79200:79500]
 y2 = conc_data['Con'][79200:79500]
 x = range(0,len(y1))
-#x_tick = np.arange(0,hours_in_year,1000)
-fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
+fig, (ax1,ax2) = plt.subplots(2,1,figsize=(10,6))
 ax1.plot(x[0:len(y1)], y1[0:len(y1)], label='Radiation')  # Plot some data on the axes.
-ax1.set_xlabel('Hours')  # Add an x-label to the axes.
-#ax1.set_xticks(x_tick)
-ax1.set_ylabel('radiation')  # Add a y-label to the axes.
-ax1.legend();  # Add a legend.
+ax1.set_ylabel('radiation', fontsize=16)  # Add a y-label to the axes.
+
 
 ax2.plot(x[0:len(y1)], y2[0:len(y1)], label='Consumption')  # Plot more data on the axes...
-ax2.set_xlabel('Hours')  # Add an x-label to the axes.
-ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
-#ax2.set_xticks(x_tick)
-ax2.legend();  # Add a legend.
-ax1.set_title("Radiation & Consumption")  # Add a title to the axes.
+ax2.set_xlabel('Hours', fontsize=16)  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption', fontsize=16)  # Add a y-label to the axes.
+ax1.set_title("Radiation & Consumption", fontsize=16)  # Add a title to the axes.
 
 #%%
 """
 Plotting the Time of day and the consumption in two graphs next to eachother.
 This is only for 1000 hours, else it is not possible to see anything
 """
+days = ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17']
 y1 = conc_data['time']
 y2 = conc_data['Con']
 x = range(0,len(y1))
-x_tick = np.arange(0,100,4)
-fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[0:100], y1[0:100], label='Time')  # Plot some data on the axes.
-ax1.set_xlabel('Hours')  # Add an x-label to the axes.
-ax1.set_ylabel('Time of Day')  # Add a y-label to the axes.
-ax1.set_xticks(x_tick)
-ax1.legend();  # Add a legend.
-
-ax2.plot(x[0:100], y2[0:100], label='Consumption')  # Plot more data on the axes...
-ax2.set_xlabel('Hours')  # Add an x-label to the axes.
-ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
-ax2.set_xticks(x_tick)
-ax2.legend();  # Add a legend.
-ax1.set_title("Time of Day & Consumption")  # Add a title to the axes.
+fig = plt.figure(figsize=(15, 6))
+ax = fig.add_subplot()
+ax.plot(x[100:200], y2[100:200], label='Consumption')  # Plot more data on the axes...
+ax.set_xlabel('Days', fontsize=20)  # Add an x-label to the axes.
+ax.set_ylabel('Consumption', fontsize=20)  # Add a y-label to the axes.
+ax.set_xticklabels(days)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+ax.set_xticks(range(100,200,24))
+ax.set_title("Consumption with X-axis set to days", fontsize=20)  
 
 #%%
 """
@@ -178,17 +170,17 @@ This is only for 1000 hours, else it is not possible to see anything
 y1 = conc_data['is_holiday']
 y2 = conc_data['Con']
 x = range(0,len(y1))
-fig, (ax1,ax2) = plt.subplots(2,1,figsize=(30,10))
-ax1.plot(x[2000:3000], y1[2000:3000], label='Holiday or not')  # Plot some data on the axes.
-ax1.set_xlabel('Hours')  # Add an x-label to the axes.
-ax1.set_ylabel('Holiday or not')  # Add a y-label to the axes.
-ax1.legend();  # Add a legend.
+fig, (ax1,ax2) = plt.subplots(2,1,figsize=(10,6))
+ax1.plot(x[2000:2500], y1[2000:2500], label='Holiday or not')  # Plot some data on the axes.
+#ax1.set_xlabel('Hours', fontsize=16)  # Add an x-label to the axes.
+ax1.set_ylabel('Holiday or not', fontsize=16)  # Add a y-label to the axes.
+#ax1.set_xticks(range(2000,2500,24))
 
-ax2.plot(x[2000:3000], y2[2000:3000], label='Consumption')  # Plot more data on the axes...
-ax2.set_xlabel('Hours')  # Add an x-label to the axes.
-ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
-ax2.legend();  # Add a legend.
-ax1.set_title("Holiday or Not & Consumption")  # Add a title to the axes.
+ax2.plot(x[2000:2500], y2[2000:2500], label='Consumption')  # Plot more data on the axes...
+ax2.set_xlabel('Hours', fontsize=16)  # Add an x-label to the axes.
+ax2.set_ylabel('Consumption', fontsize=16)  # Add a y-label to the axes.
+
+ax1.set_title("Holiday or Not & Consumption", fontsize=16)  # Add a title to the axes.
 # %%
 """
 Plotting the temperature calculate as "graddage" and the consumption in two graphs next to eachother.
@@ -198,19 +190,20 @@ y2 = conc_data['Con']
 z = np.polyfit(y1, y2, 1)
 p = np.poly1d(z)
 x = range(0,len(y1))
-fig, ax = plt.subplots(figsize=(20,20))
+fig, ax = plt.subplots(figsize=(6,6))
 ax.plot(y1,p(y1),"b")
-ax.scatter(y1[0:20000], y2[0:20000])  # Plot some data on the axes.
+ax.scatter(y1[0:20000], y2[0:20000], 1)  # Plot some data on the axes.
 ax.set_xlabel('Degree day')  # Add an x-label to the axes.
 ax.set_ylabel('Consumption')  # Add a y-label to the axes.
-ax.legend();  # Add a legend.
+ax.set_title("Degree-Days vs Consumption")  # Add a title to the axes.
+
 plt.show()
+
 """
 ax2.plot(x[0:len(y1)], y2[0:len(y1)], label='Consumption')  # Plot more data on the axes...
 ax2.set_xlabel('Hours')  # Add an x-label to the axes.
 ax2.set_ylabel('Consumption')  # Add a y-label to the axes.
 ax2.legend();  # Add a legend.
-ax1.set_title("Graddage vs consumption")  # Add a title to the axes.
 """
 #%%
 """
@@ -240,16 +233,18 @@ months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 
 y2 = forecast_merge[:-1]['mean_temp']
 y1 = forecast_merge[:-1]['temp_mean_past1h']
 x = range(0,len(y1))
-fig = plt.figure()
+fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot()
 ax.plot(x, y1, color='tab:blue', label='Observed values')
 ax.plot(x, y2, color='tab:orange', label='Forecast values')
-ax.set_ylabel('temperature')
+ax.set_ylabel('Temperature C',fontsize=16)
 ax.set_xticks(range(0,2914,250))
 ax.set_xticklabels(months)
-ax.set_xlabel('hours')
-ax.set_title('Plot of observed and forecast temperatures in celsius')
-ax.legend()
+ax.set_xlabel('Months',fontsize=16)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+ax.set_title('Observed and forecast temperatures',fontsize=24)
+ax.legend(fontsize=16)
 
 #%%
 """
@@ -259,16 +254,18 @@ ax.legend()
 y2 = forecast_merge[:-1]['mean_radi']
 y1 = forecast_merge[:-1]['radia_glob_past1h']
 x = range(0,len(y1))
-fig = plt.figure()
+fig = plt.figure(figsize=(10, 6))
 ax = fig.add_subplot()
 ax.plot(x, y1, color='tab:blue', label='Observed values')
 ax.plot(x, y2, color='tab:orange', label='Forecast values')
-ax.set_ylabel('radiation')
+ax.set_ylabel('Radiation W/m^2',fontsize=16)
 ax.set_xticks(range(0,2914,250))
 ax.set_xticklabels(months)
-ax.set_xlabel('hours')
-ax.set_title('Plot of observed and forecast radiation levels measured in kW/m2')
-ax.legend()
+ax.set_xlabel('Months',fontsize=16)
+plt.xticks(fontsize=16)
+plt.yticks(fontsize=16)
+ax.set_title('Observed and forecast radiation levels', fontsize=24)
+ax.legend(fontsize=16)
 # %%
 print(metrics.r2_score(y1,y2))
 #%%

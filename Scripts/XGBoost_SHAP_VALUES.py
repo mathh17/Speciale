@@ -12,7 +12,7 @@ import shap
 #%%
 # read the files from the datafolder containing data fra DK2
 # changing the path to the datafolder
-path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\stations_data_dk2'
+path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts\Data\dmi_data_dk2'
 
 os.chdir(path)
 
@@ -41,12 +41,7 @@ dk2_mean.head()
 # Change back path
 old_path = r'C:\Users\oeste\OneDrive\Uni\Speciale\Scripts'
 os.chdir(old_path)
-df_DK1_2010_2015 = pd.read_pickle("data/dk1_data_2010_2015.pkl")
-df_DK2_2010_2015 = pd.read_pickle("data/dk2_data_2010_2015.pkl")
-df_DK1_2015_2020 = pd.read_pickle("data/dk1_data_2015_2020.pkl")
-df_DK2_2015_2020 = pd.read_pickle("data/dk2_data_2015_2020.pkl")
-df_DK1 = pd.concat([df_DK1_2010_2015,df_DK1_2015_2020], ignore_index=True)
-df_DK2 = pd.concat([df_DK2_2010_2015,df_DK2_2015_2020], ignore_index=True)
+df_DK2 = pd.read_parquet("Data/el_data_2010-2020_dk2")
 
 #Merge data into one DF, on the hour of observations
 dk2_mean['time'] = pd.to_datetime(dk2_mean['time'],format='%Y-%m-%dT%H:%M:%S', utc=True)
@@ -76,8 +71,8 @@ conc_data = data_encoder(conc_data)
 pred_data['is_holiday'] = conc_data['is_holiday']
 pred_data['year'] = conc_data['time'].dt.year 
 pred_data['day'] = conc_data['time'].dt.dayofweek
-pred_data['grad_dage'] = -(conc_data['temp_mean_past1h'])+17
-pred_data.loc[pred_data['grad_dage'] <=0, 'grad_dage'] = 0
+pred_data['Degree_days'] = -(conc_data['temp_mean_past1h'])+17
+pred_data.loc[pred_data['Degree_days'] <=0, 'Degree_days'] = 0
 pred_data['time'] = conc_data['time'].dt.hour
 
 hours_in_year = 8760

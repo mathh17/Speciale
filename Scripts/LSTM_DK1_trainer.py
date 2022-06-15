@@ -45,6 +45,26 @@ def create_dataset(df, n_deterministic_features,
     return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
 
+
+def create_forecast_dataset(df_forecast,
+                   window_size, forecast_size,
+                   batch_size):
+    total_size = window_size + forecast_size
+
+    data_forecast = tf.data.Dataset.from_tensor_slices(df_forecast.values)
+
+    # Selecting windows
+    data_forecast = data_forecast.window(total_size, shift=1, drop_remainder=True)
+    data_forecast = data_forecast.flat_map(lambda k: k.batch(total_size))
+
+    # Extracting past features + deterministic future + labels
+    data_forecast = data_forecast.map(lambda k: ((k[:-forecast_size,0:28],
+                                k[-forecast_size:,28:55]),
+                               k[-forecast_size:, -1]))
+
+    return data_forecast.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+
+
 def daily_meaner(df):
     df_len = len(df) / 365
     weekly_con = []
@@ -136,7 +156,10 @@ y_train = con_scaled.loc[observed_scaled['year'] <= 2017]
 y_val = con_scaled.loc[observed_scaled['year'] >= 2018]
 y_train = y_train.drop(columns=['year'])
 y_val = y_val.drop(columns=['year'])
-
+forecast_val = val_set.rename(columns={'time':'time','grad_dage':'grad_dage_o','radia_glob_past1h':'radia_glob_past1h_o','is_holiday':'is_holiday_o',	0:'0_o',	1:'1_o',	2:'2_o',	3:'3_o',	4:'4_o',	5:'5_o',	6:'6_o',	7:'7_o',	8:'8_o',	9:'9_o',	10:'10_o',	11:'11_o',	12:'12_o',	13:'13_o',	14:'14_o',	15:'15_o',	16:'16_o',	17:'17_o',	18:'18_o',	19:'19_o',	20:'20_o',	21:'21_o',	22:'22_o',	23:'23_o',	'Con':'Con_o'})
+forecast_val = forecast_val.reindex(columns=['time','grad_dage_o','radia_glob_past1h_o','is_holiday_o',	'0_o',	'1_o',	'2_o',	'3_o',	'4_o',	'5_o',	'6_o',	'7_o',	'8_o',	'9_o',	'10_o','11_o',	'12_o',	'13_o',	'14_o',	'15_o',	'16_o',	'17_o','18_o','19_o','20_o','21_o','22_o','23_o','Con_o'])
+forecast_val = forecast_val.sort_values(by='time')
+forecast_val = forecast_val.reset_index(drop=True)
 train_set = train_set.drop(columns=['year','temp_mean_past1h','time'])
 val_set = val_set.drop(columns=['year','temp_mean_past1h','time'])
 train_set = train_set.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
@@ -187,10 +210,12 @@ plt.plot(epochs, loss_vals, 'bo')
 plt.plot(epochs, val_loss, 'b')
 plt.show
 #%%
-windows = 540
+windows = 2
 val_pred = pd.DataFrame()
 for i, data in enumerate(X_val_windowed.take(windows)):
     (past, future),truth = data
+    print(past[0][0])
+    print(future[0][0])
     model_pred = loaded_model.predict((past,future))
     window_df = pd.DataFrame(columns=['truth','pred'])
     window_df['truth'] = truth.numpy()[0]
@@ -234,10 +259,13 @@ print('Baseline mse: '+ str(naive_forecast_mse))
 #%%
 #------ IMPORT FORECAST DATA----------
 
-forecast_df = pd.read_parquet('Data/dk1_forecast_sorted')
-forecast_df = data_encoder(forecast_df)
-forecast_df['hour'] = forecast_df['time'].dt.hour
-forecast_df = forecast_df.drop(columns=['predicted_ahead'])
+forecast_encoded = pd.read_parquet('Data/dk1_forecast_sorted')
+forecast_encoded = data_encoder(forecast_encoded)
+forecast_encoded['hour'] = forecast_encoded['time'].dt.hour
+forecast_encoded = forecast_encoded.drop(columns=['predicted_ahead'])
+forecast_encoded.dropna(inplace=True)
+#%%
+forecast_df = pd.merge(forecast_encoded.reset_index(),forecast_val, on=['time'], how='left').set_index('index')
 forecast_df.dropna(inplace=True)
 forecast_df['mean_temp'] = forecast_df['mean_temp'] - 273.15
 forecast_df['grad_dage'] = -(forecast_df['mean_temp'])+17
@@ -251,18 +279,30 @@ forecast_con = forecast_con.reshape(-1,1)
 cat_time = pd.get_dummies(forecast_df['hour'])
 forecast_df = forecast_df.join(cat_time)
 forecast_df = forecast_df.drop(columns=['hour'])
-forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
+#forecast_df = forecast_df.reindex(columns=['time','grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
+forecast_df = forecast_df.reindex(columns=['grad_dage_o','radia_glob_past1h_o','is_holiday_o',	'0_o',	'1_o',	'2_o',	'3_o',	'4_o',	'5_o',	'6_o',	'7_o',	'8_o',	'9_o',	'10_o','11_o',	'12_o',	'13_o',	'14_o',	'15_o',	'16_o',	'17_o','18_o','19_o','20_o','21_o','22_o','23_o','Con_o','grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
 forecast_df[['grad_dage','radia_glob_past1h','Con']] = scaler.transform(forecast_df[['grad_dage','radia_glob_past1h','Con']])
 
 #%%
-forecast_windowed = create_dataset(forecast_df,27,48,48,48)
+forecast_windowed = create_forecast_dataset(forecast_df,48,48,48)
+forecast_val = forecast_val.drop(columns=['time'])
 
 #%%
-windows = 2850
+windows = 1
 test_pred = pd.DataFrame()
+checker = []
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data
-    model_pred = loaded_model.predict((past,future))
+    past_np = np.array(past)
+    for i in range(len(past_np)):
+        past_df = forecast_val[forecast_val.iloc[:,0:28] == past_np[i][0]]
+        past_df.dropna(inplace=True)
+        ind = past_df.index[0]
+        print(ind)
+        past_input = forecast_val.iloc[ind-48:ind]
+        past_np[i] = past_input
+    checker.append(past_np[0])
+    model_pred = loaded_model.predict((past_np,future))
     window_df = pd.DataFrame(columns=['truth','pred'])
     window_df['truth'] = truth.numpy()[0]
     window_df['pred'] = pd.DataFrame(model_pred[0])
@@ -287,8 +327,8 @@ print('Baseline mse: '+ str(naive_forecast_mse))
 
 
 test_plot = pd.DataFrame()
-test_plot['exact_values'] = pd.DataFrame(forecast_truth_rescaled)
-test_plot['predicted_values'] = pd.DataFrame(forecast_pred_rescaled)
+test_plot['exact_values'] = forecast_truth_rescaled
+test_plot['predicted_values'] = forecast_pred_rescaled
 range_len = len(test_plot)
 test_plot = test_plot.reset_index()
 fig = plt.figure(figsize=(20, 6))
@@ -308,8 +348,6 @@ plt.show()
 #%%
 forecast_truth_weekly = daily_meaner(forecast_truth_rescaled)
 forecast_pred_weekly = daily_meaner(forecast_pred_rescaled)
-#%%
-
 
 test_plot = pd.DataFrame()
 test_plot['exact_values'] = forecast_truth_weekly

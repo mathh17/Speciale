@@ -14,7 +14,8 @@ from sklearn import preprocessing
 from tensorflow.keras.callbacks import EarlyStopping
 
 #%%
-#Calling the holiday function to build a column for if its a holiday or not
+#Calling the holiday function to build a column for if its a holiday or not on a given dataframe
+#This function is very slow and should be refactored
 def holidays(df):
     holidays = []
     for i, row in df.iterrows():
@@ -26,14 +27,15 @@ def data_encoder(df):
     df['is_holiday'] = holidays(df)
     return df
 
+#Creates the windows from the dataframes for the training data. 
+#df =  dataframe 
+# n_deterministic_features = Number of deterministic features, 
+# window_size = size of the window looking backwards 
+# forecast_size = size of the window you want to forecast
+# batch_size = number of batch
 def create_dataset(df, n_deterministic_features,
                    window_size, forecast_size,
                    batch_size):
-    # Feel free to play with shuffle buffer size
-    
-    shuffle_buffer_size = len(df)
-    # Total size of window is given by the number of steps to be considered
-    # before prediction time + steps that we want to forecast
     total_size = window_size + forecast_size
 
     data = tf.data.Dataset.from_tensor_slices(df.values)
@@ -42,9 +44,6 @@ def create_dataset(df, n_deterministic_features,
     data = data.window(total_size, shift=1, drop_remainder=True)
     data = data.flat_map(lambda k: k.batch(total_size))
 
-    #Shuffling data (seed=Answer to the Ultimate Question of Life, the Universe, and Everything)
-    data = data.shuffle(shuffle_buffer_size, seed=42)
-
     # Extracting past features + deterministic future + labels
     data = data.map(lambda k: ((k[:-forecast_size],
                                 k[-forecast_size:, 0:n_deterministic_features]),
@@ -52,33 +51,32 @@ def create_dataset(df, n_deterministic_features,
 
     return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
-def create_dataset_non_shuffled(df, n_deterministic_features,
+# Creates the windows from the dataframes for the actual forecast data.
+# This function takes a dataframe with 56 columns, because the first 26 columns are the values from the actual time,
+# this is so when the predictions are done, the true values can be found and inserted 
+# df =  dataframe 
+# window_size = size of the window looking backwards 
+# forecast_size = size of the window you want to forecast
+# batch_size = number of batch
+def create_forecast_dataset(df_forecast,
                    window_size, forecast_size,
                    batch_size):
-    # Feel free to play with shuffle buffer size
-    
-    #shuffle_buffer_size = len(df)
-    # Total size of window is given by the number of steps to be considered
-    # before prediction time + steps that we want to forecast
     total_size = window_size + forecast_size
 
-    data = tf.data.Dataset.from_tensor_slices(df.values)
+    data_forecast = tf.data.Dataset.from_tensor_slices(df_forecast.values)
 
     # Selecting windows
-    data = data.window(total_size, shift=1, drop_remainder=True)
-    data = data.flat_map(lambda k: k.batch(total_size))
-
-    #Shuffling data (seed=Answer to the Ultimate Question of Life, the Universe, and Everything)
-    #data = data.shuffle(shuffle_buffer_size, seed=42)
+    data_forecast = data_forecast.window(total_size, shift=1, drop_remainder=True)
+    data_forecast = data_forecast.flat_map(lambda k: k.batch(total_size))
 
     # Extracting past features + deterministic future + labels
-    data = data.map(lambda k: ((k[:-forecast_size],
-                                k[-forecast_size:, 0:n_deterministic_features]),
+    data_forecast = data_forecast.map(lambda k: ((k[:-forecast_size,0:28],
+                                k[-forecast_size:,28:55]),
                                k[-forecast_size:, -1]))
 
-    return data.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
+    return data_forecast.batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE)
 
-
+# Takes the predictions done for a year and makes it into a mean pr day
 
 def daily_meaner(df):
     df_len = len(df) / 365
@@ -138,6 +136,7 @@ conc_data = pd.merge(dk2_mean, df_DK2, on='time', how='outer')
 conc_data.dropna(inplace=True)
 conc_data = conc_data.iloc[::-1]
 conc_data = conc_data.sort_values(['time'])
+conc_data.reset_index(drop=True)
 
 #Take data from the concatenated dataset and put it into label data and train data
 observed_data = pd.DataFrame(conc_data[['temp_mean_past1h','radia_glob_past1h','Con','time']])
@@ -170,7 +169,11 @@ y_train = con_scaled.loc[observed_scaled['year'] <= 2017]
 y_val = con_scaled.loc[observed_scaled['year'] >= 2018]
 y_train = y_train.drop(columns=['year'])
 y_val = y_val.drop(columns=['year'])
-
+forecast_val = val_set.rename(columns={'time':'time','grad_dage':'grad_dage_o','radia_glob_past1h':'radia_glob_past1h_o','is_holiday':'is_holiday_o',	0:'0_o',	1:'1_o',	2:'2_o',	3:'3_o',	4:'4_o',	5:'5_o',	6:'6_o',	7:'7_o',	8:'8_o',	9:'9_o',	10:'10_o',	11:'11_o',	12:'12_o',	13:'13_o',	14:'14_o',	15:'15_o',	16:'16_o',	17:'17_o',	18:'18_o',	19:'19_o',	20:'20_o',	21:'21_o',	22:'22_o',	23:'23_o',	'Con':'Con_o'})
+forecast_val = forecast_val.reindex(columns=['time','grad_dage_o','radia_glob_past1h_o','is_holiday_o',	'0_o',	'1_o',	'2_o',	'3_o',	'4_o',	'5_o',	'6_o',	'7_o',	'8_o',	'9_o',	'10_o','11_o',	'12_o',	'13_o',	'14_o',	'15_o',	'16_o',	'17_o','18_o','19_o','20_o','21_o','22_o','23_o','Con_o'])
+forecast_val = forecast_val.sort_values(by='time')
+forecast_val = forecast_val.reset_index(drop=True)
+val_time = forecast_val
 train_set = train_set.drop(columns=['year','temp_mean_past1h','time'])
 val_set = val_set.drop(columns=['year','temp_mean_past1h','time'])
 train_set = train_set.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
@@ -206,12 +209,15 @@ model.summary()
 history = model.fit(X_train_windowed ,epochs=150, validation_data=(X_val_windowed), verbose=2)
 
 #%%
+#Save the model
 model.save('LSTM_DK2_shuffled.h5')
 
 #%%
+#Load the model
 loaded_model = keras.models.load_model('LSTM_DK2_shuffled.h5')  
 
 #%%
+#Plot the loss values for the training and validation performances of the model
 history_dict = history.history
 loss_vals = history_dict['loss']
 val_loss = history_dict['val_loss']
@@ -226,6 +232,7 @@ plt.ylabel('Loss values')
 plt.show
 
 #%%
+#takes a number of windows from the validation set and predicts the consumption from these windows
 windows = 545
 val_pred = pd.DataFrame()
 for i, data in enumerate(X_val_windowed.take(windows)):
@@ -237,6 +244,7 @@ for i, data in enumerate(X_val_windowed.take(windows)):
     val_pred = pd.concat([val_pred,window_df])
 
 #%%
+#Plots the true and predicted values in one graph.
 range_len = windows * 48
 test_plot = pd.DataFrame()
 test_plot['exact_values'] = val_pred['truth']
@@ -256,14 +264,17 @@ fig.tight_layout()
 plt.show()
 
 #%%
+#Transforms the true and predicted values back to the actual values.
 val_pred_rescaled = con_scaler.inverse_transform(pd.DataFrame(val_pred['pred']))
 val_truth_rescaled = con_scaler.inverse_transform(pd.DataFrame(val_pred['truth']))
 
+#Calculates the MSE and R^2 scores for the trained model
 forecast_mse = mean_squared_error(val_truth_rescaled,val_pred_rescaled)
 forecast_r2 = r2_score(val_truth_rescaled,val_pred_rescaled)
 print('forecast r2 score: '+ str(forecast_r2))
 print('Forecast mse: '+ str(forecast_mse))
 #%%
+#Calculates the MSE and R^2 scores for the naive model
 naive_y_val = np.roll(val_truth_rescaled,24)
 naive_forecast_mse = mean_squared_error(val_truth_rescaled,naive_y_val)
 naive_forecast_r2 = r2_score(val_truth_rescaled,naive_y_val)
@@ -272,50 +283,70 @@ print('Baseline mse: '+ str(naive_forecast_mse))
 
 #%%
 #------ IMPORT FORECAST DATA----------
-#%%
-forecast_df = pd.read_parquet('Data/dk2_forecast_sorted')
-forecast_df = data_encoder(forecast_df)
-forecast_df['hour'] = forecast_df['time'].dt.hour
-forecast_df = forecast_df.drop(columns=['predicted_ahead'])
+#this section imports the forecast data and processes the data so it is ready to be predicted on
+forecast_encoded = pd.read_parquet('Data/dk2_forecast_sorted')
+forecast_encoded = data_encoder(forecast_encoded)
+forecast_encoded['hour'] = forecast_encoded['time'].dt.hour
+forecast_encoded = forecast_encoded.drop(columns=['predicted_ahead'])
+forecast_encoded.dropna(inplace=True)
+forecast_df = pd.merge(forecast_encoded.reset_index(),forecast_val, on=['time'], how='left').set_index('index')
 forecast_df.dropna(inplace=True)
+forecast_df.reset_index(drop=True)
 forecast_df['mean_temp'] = forecast_df['mean_temp'] - 273.15
 forecast_df['grad_dage'] = -(forecast_df['mean_temp'])+17
 forecast_df.loc[forecast_df['grad_dage'] <=0, 'grad_dage'] = 0
 forecast_df = forecast_df.rename(columns={'mean_radi':'radia_glob_past1h'})
 forecast_df = forecast_df.drop(columns=['mean_temp'])
+forecast_df = forecast_df.loc[forecast_df['Con'] < 3500]
+forecast_df = forecast_df.loc[forecast_df['Con'] > 1100]
 forecast_con = np.array(forecast_df['Con'])
 forecast_con = forecast_con.reshape(-1,1)
 cat_time = pd.get_dummies(forecast_df['hour'])
 forecast_df = forecast_df.join(cat_time)
 forecast_df = forecast_df.drop(columns=['hour'])
-forecast_df = forecast_df.reindex(columns=['grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
+#forecast_df = forecast_df.reindex(columns=['time','grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
+forecast_df = forecast_df.reindex(columns=['grad_dage_o','radia_glob_past1h_o','is_holiday_o',	'0_o',	'1_o',	'2_o',	'3_o',	'4_o',	'5_o',	'6_o',	'7_o',	'8_o',	'9_o',	'10_o','11_o',	'12_o',	'13_o',	'14_o',	'15_o',	'16_o',	'17_o','18_o','19_o','20_o','21_o','22_o','23_o','Con_o','grad_dage',	'radia_glob_past1h',	'is_holiday',	0,	1,	2,	3,	4,	5,	6,	7,	8,	9,	10,	11,	12,	13,	14,	15,	16,	17,	18,	19,	20,	21,	22,	23,	'Con'])
 forecast_df[['grad_dage','radia_glob_past1h','Con']] = scaler.transform(forecast_df[['grad_dage','radia_glob_past1h','Con']])
 
 #%%
-forecast_windowed = create_dataset_non_shuffled(forecast_df,27,48,48,48)
+#Windows the forecast data and removes the time column from the observed values 
+forecast_windowed = create_forecast_dataset(forecast_df,48,48,48)
+forecast_val = forecast_val.drop(columns=['time'])
 
 #%%
-windows = 2850
+#Takes windows of the windowed forecast dataframe, the observed data is the used to find subsets from the observed values,
+#This assures that the predictions, get the data from the observed values as the past values and the forecasted data as the future values
+windows = 1
 test_pred = pd.DataFrame()
 for i, data in enumerate(forecast_windowed.take(windows)):
     (past, future),truth = data
-    model_pred = loaded_model.predict((past,future))
+    past_np = np.array(past)
+    for i in range(len(past_np)):
+        past_df = forecast_val[forecast_val.iloc[:,0:28] == past_np[i][0]]
+        past_df.dropna(inplace=True)
+        ind = past_df.index[0]
+        
+        past_input = forecast_val.iloc[ind-48:ind]
+        
+        past_np[i] = past_input
+    model_pred = loaded_model.predict((past_np,future))
     window_df = pd.DataFrame(columns=['truth','pred'])
     window_df['truth'] = truth.numpy()[0]
     window_df['pred'] = pd.DataFrame(model_pred[0])
     test_pred = pd.concat([test_pred,window_df])
 
-
-
 #%%
+#Rescales the predicted and true values back to normal values
 forecast_pred_rescaled = con_scaler.inverse_transform(pd.DataFrame(test_pred['pred']))
 forecast_truth_rescaled = con_scaler.inverse_transform(pd.DataFrame(test_pred['truth']))
 
+#Calculates the MSE and R^2 scores for the trained model
 forecast_mse = mean_squared_error(forecast_truth_rescaled,forecast_pred_rescaled)
 forecast_r2 = r2_score(forecast_truth_rescaled,forecast_pred_rescaled)
 print('forecast r2 score: '+ str(forecast_r2))
 print('Forecast mse: '+ str(forecast_mse))
 #%%
+#Calculates the MSE and R^2 scores for the naive model
 naive_y_val = np.roll(forecast_con,48)
 naive_forecast_mse = mean_squared_error(forecast_con,naive_y_val)
 naive_forecast_r2 = r2_score(forecast_con,naive_y_val)
@@ -323,6 +354,8 @@ print('baseline r2 score: '+ str(naive_forecast_r2))
 print('Baseline mse: '+ str(naive_forecast_mse))
 
 #%%
+#Plots the true and predicted values in one graph.
+
 test_plot = pd.DataFrame()
 test_plot['exact_values'] = forecast_truth_rescaled.flatten()
 test_plot['predicted_values'] = forecast_pred_rescaled
@@ -342,12 +375,14 @@ fig.tight_layout()
 plt.show()
 
 #%%
-forecast_truth_weekly = daily_meaner(forecast_truth_rescaled)
-forecast_pred_weekly = daily_meaner(forecast_pred_rescaled)
+#Calculates the daily mean for the predictions
+forecast_truth_daily = daily_meaner(forecast_truth_rescaled)
+forecast_pred_daily = daily_meaner(forecast_pred_rescaled)
 
+#Plots the daily means for the true and predicted values
 test_plot = pd.DataFrame()
-test_plot['exact_values'] = forecast_truth_weekly
-test_plot['predicted_values'] = forecast_pred_weekly
+test_plot['exact_values'] = forecast_truth_daily
+test_plot['predicted_values'] = forecast_pred_daily
 range_len = len(test_plot)
 test_plot = test_plot.reset_index()
 fig = plt.figure(figsize=(15, 6))
