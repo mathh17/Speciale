@@ -212,7 +212,7 @@ model.save('LSTM_DK2_1000_epochs.h5')
 
 #%%
 #Load the model
-loaded_model = keras.models.load_model('LSTM_DK2_1000_epochs.h5')  
+loaded_model = keras.models.load_model('LSTM_DK2_shuffled.h5')  
 
 #%%
 #Plot the loss values for the training and validation performances of the model
